@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model user {
+  id          String      @id   @default(uuid())
+  username    String?     @unique  
+  password    String?                
+  email       String?       @unique 
+  
+  // New OAuth fields
+  google_id   String?     @unique
+  name        String?
+  picture     String?
+  auth_provider String?    
+  discord_webhook String?
+  slack_webhook   String?
+  
+  websites    website[]
+}
+
+model website {
+  id         String         @id @default(uuid())
+  url        String
+  user_id    String
+  time_added DateTime
+  isPaused       Boolean        @default(false)
+  tags           String[]       @default([])
+  check_interval Int            @default(1)
+  maintenance_start  DateTime?
+  maintenance_end    DateTime?
+  maintenance_note   String?
+  user           user           @relation(fields: [user_id], references: [id])
+  ticks      website_tick[]
+  analytics  analytics_site?
+}
+
+model region {
+  id     String         @id
+  name   String
+  flag   String?
+  tickes website_tick[]
+}
+
+model website_tick {
+  id                     String         @id @default(uuid())
+  status                 website_status
+  region_id              String
+  website_id             String
+  createdAt              DateTime       @default(now())
+  connection_time_ms     Int?
+  data_transfer_time_ms  Int?
+  tls_handshake_time_ms  Int?
+  total_response_time_ms Int?
+  region                 region         @relation(fields: [region_id], references: [id])
+  website                website        @relation(fields: [website_id], references: [id])
+}
+
+model analytics_site {
+  id          String   @id @default(uuid())
+  website_id  String   @unique
+  website     website  @relation(fields: [website_id], references: [id])
+  created_at  DateTime @default(now())
+  page_views  page_view[]
+  sessions    analytics_session[]
+  js_errors   js_error[]
+}
+
+model page_view {
+  id         String   @id @default(uuid())
+  site_id    String
+  site       analytics_site @relation(fields: [site_id], references: [id])
+  page_url   String
+  referrer   String?
+  country    String?
+  device     String?
+  browser    String?
+  session_id String?
+  timestamp  DateTime @default(now())
+}
+
+model analytics_session {
+  id               String   @id @default(uuid())
+  site_id          String
+  site             analytics_site @relation(fields: [site_id], references: [id])
+  session_id       String
+  started_at       DateTime @default(now())
+  ended_at         DateTime?
+  duration_seconds Int?
+  page_count       Int      @default(1)
+}
+
+model js_error {
+  id        String   @id @default(uuid())
+  site_id   String
+  site       analytics_site @relation(fields: [site_id], references: [id])
+  message   String
+  stack     String?
+  page_url  String?
+  browser   String?
+  timestamp DateTime @default(now())
+  resolved  Boolean  @default(false)
+}
+
+enum website_status {
+  Up
+  Down
+  Unknown
+}
+
