@@ -97,12 +97,9 @@ app.use((req: Request, res: Response) => {
 // 8. ERROR HANDLER
 //
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  console.error('Unhandled error:', err);
+  // console.error('Unhandled error:', err); // Cleaned for production
   res.status(500).json({
-    message: 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && {
-      error: err.message
-    })
+    message: 'Internal server error'
   });
 });
 
