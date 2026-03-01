@@ -11,4 +11,4 @@ export const SESSION_SECRET =
   process.env.SESSION_SECRET || 'your-session-secret';
 
 export const CLIENT_URL =
-  (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+  (process.env.CLIENT_URL || '').replace(/\/$/, '');
