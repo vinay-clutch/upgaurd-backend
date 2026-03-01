@@ -832,7 +832,7 @@ export const exportCsv = async (req: Request, res: Response) => {
     ];
 
     const csv = csvRows.join('\n');
-    const filename = `upgaurd-${website.url.replace(/https?:\/\//, '').replace(/[^a-z0-9]/gi, '-')}-${days}days.csv`;
+    const filename = `antigravtiven-${website.url.replace(/https?:\/\//, '').replace(/[^a-z0-9]/gi, '-')}-${days}days.csv`;
 
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
