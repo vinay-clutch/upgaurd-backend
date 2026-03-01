@@ -163,3 +163,11 @@ Thumbs.db
 .DS_Store
 build_errors*.txt
 tsconfig.tsbuildinfo
+
+# Docker
+Dockerfile
+Dockerfile.*
+.dockerignore
+
+# Temporary tests
+test_*.ts
