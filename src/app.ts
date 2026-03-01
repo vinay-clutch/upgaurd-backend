@@ -23,7 +23,7 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization']
   })
 );
-
+app.options("*", cors());
 //
 // 2. RATE LIMITING
 //
