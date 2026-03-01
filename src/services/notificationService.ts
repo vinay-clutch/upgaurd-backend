@@ -380,7 +380,7 @@ export class NotificationService {
           <p><strong>Previous Status:</strong> ${previousStatus}</p>
           <p><strong>Detected At:</strong> ${new Date().toUTCString()}</p>
           ${diagnosisHtml}
-          <p style="color:#6b7280;font-size:14px;">— UpGuard Monitoring Team</p>
+          <p style="color:#6b7280;font-size:14px;">— Antigravtiven Monitoring Team</p>
         </div>
       </div>`
       : `
@@ -396,12 +396,12 @@ export class NotificationService {
           <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:16px;margin:20px 0;">
             <p style="margin:0;">🎉 Your website is back online!</p>
           </div>
-          <p style="color:#6b7280;font-size:14px;">— UpGuard Monitoring Team</p>
+          <p style="color:#6b7280;font-size:14px;">— Antigravtiven Monitoring Team</p>
         </div>
       </div>`;
 
     const { error } = await resend.emails.send({
-      from: "UpGuard <onboarding@resend.dev>",
+      from: "Antigravtiven <onboarding@resend.dev>",
       to: [email],
       subject,
       html,
@@ -513,13 +513,13 @@ export class NotificationService {
         <p style="color:#6b7280;font-size:13px;margin-top:24px;">
           Period: ${since.toDateString()} – ${new Date().toDateString()}<br>
           Total checks: ${total} | Up: ${upCount} | Down: ${downCount}<br>
-          <strong>UpGuard Monitoring</strong>
+          <strong>Antigravtiven Monitoring</strong>
         </p>
       </div>
     </div>`;
 
     await resend.emails.send({
-      from: "UpGuard <onboarding@resend.dev>",
+      from: "Antigravtiven <onboarding@resend.dev>",
       to: [website.user.email],
       subject: `📊 ${period === "weekly" ? "Weekly" : "Monthly"} Report — ${website.url}`,
       html,

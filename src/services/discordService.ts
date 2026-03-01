@@ -37,7 +37,7 @@ export async function sendDiscordAlert(
         }] : [])
       ],
       footer: { 
-        text: 'UpGuard Monitoring • Never miss downtime' 
+        text: 'Antigravtiven Monitoring • Never miss downtime' 
       },
       timestamp: new Date().toISOString()
     }]
@@ -54,17 +54,17 @@ export async function sendDiscordAlert(
 export async function sendDiscordTestMessage(webhookUrl: string) {
   const embed = {
     embeds: [{
-      title: '✅ UpGuard Connected!',
+      title: '✅ Antigravtiven Connected!',
       description: 'Discord alerts are now configured. You will receive notifications when your websites go down or recover.',
       color: 0x5865F2,
       fields: [
         {
-          name: '🛡️ UpGuard',
+          name: '🛡️ Antigravtiven',
           value: 'Website Uptime Monitoring',
           inline: true
         }
       ],
-      footer: { text: 'UpGuard Monitoring' },
+      footer: { text: 'Antigravtiven Monitoring' },
       timestamp: new Date().toISOString()
     }]
   };
