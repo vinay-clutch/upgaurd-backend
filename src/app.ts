@@ -15,25 +15,9 @@ const app = express();
 //
 // 1. CORS CONFIGURATION (Production Ready)
 //
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3005',
-  'http://127.0.0.1:5173',
-  CLIENT_URL // Sanitized Vercel frontend
-].filter(Boolean);
-
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // allow Postman / server requests
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      } else {
-        return callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: CLIENT_URL,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -85,8 +69,7 @@ app.use(passport.session());
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
-    timestamp: new Date().toISOString(),
-    service: 'UpGuard Backend'
+    service: 'Antigravtiven Backend'
   });
 });
 
