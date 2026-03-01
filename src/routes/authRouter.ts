@@ -3,6 +3,7 @@ import passport from '../config/passport';
 import { signin, signup, me } from '../controllers/authController';
 import { googleCallback } from '../controllers/oauthController';
 import { authMiddleware } from '../middlewares/authmiddleware';
+import { CLIENT_URL } from '../lib/config';
 
 export const authRouter = express.Router();
 
@@ -16,7 +17,7 @@ authRouter.get('/google',
 
 authRouter.get('/google/callback', 
   passport.authenticate('google', { 
-    failureRedirect: `${process.env.CLIENT_URL}/login?error=oauth_failed` 
+    failureRedirect: `${CLIENT_URL}/login?error=oauth_failed` 
   }),
   googleCallback
 );

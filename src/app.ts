@@ -7,7 +7,7 @@ import { authRouter } from './routes/authRouter';
 import { websiteRouter } from './routes/websiteRouter';
 import { analyticsRouter } from './routes/analyticsRouter';
 import { getTrackerScript } from './controllers/trackerController';
-import { SESSION_SECRET } from './lib/config';
+import { SESSION_SECRET, CLIENT_URL } from './lib/config';
 import { scheduleReports } from './services/reportScheduler';
 
 const app = express();
@@ -19,8 +19,8 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3005',
   'http://127.0.0.1:5173',
-  process.env.CLIENT_URL // Vercel frontend
-].filter(Boolean); // removes undefined
+  CLIENT_URL // Sanitized Vercel frontend
+].filter(Boolean);
 
 app.use(
   cors({
