@@ -45,6 +45,7 @@
     "worker": "node --max-old-space-size=512 -r ts-node/register/transpile-only src/worker/index.ts",
     "pusher": "node --max-old-space-size=256 -r ts-node/register/transpile-only src/pusher/index.ts",
     "seed": "ts-node src/seed.ts",
-    "studio": "npx prisma studio"
+    "studio": "npx prisma studio",
+    "postinstall": "prisma generate"
   }
 }
