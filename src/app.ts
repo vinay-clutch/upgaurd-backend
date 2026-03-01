@@ -15,16 +15,11 @@ const app = express();
 //
 // 1. CORS CONFIGURATION (Production Ready)
 //
-app.use(
-  cors({
-    origin: CLIENT_URL,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-  })
-);
-app.options("*", cors());
-//
+
+app.use(cors({
+  origin: CLIENT_URL,
+  credentials: true
+}));
 // 2. RATE LIMITING
 //
 const limiter = rateLimit({
