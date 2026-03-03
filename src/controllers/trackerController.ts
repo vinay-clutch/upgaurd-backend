@@ -4,6 +4,10 @@ export const getTrackerScript = (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/javascript');
   res.setHeader('Access-Control-Allow-Origin', '*');
   
+  const protocol = req.protocol;
+  const host = req.get('host');
+  const backendUrl = `${protocol}://${host}`;
+  
   const script = `
 (function() {
   var siteId = document.currentScript 
@@ -11,7 +15,7 @@ export const getTrackerScript = (req: Request, res: Response) => {
     : null;
   if (!siteId) return;
 
-  var API = '${process.env.CLIENT_URL || 'http://localhost:3005'}';
+  var API = '${backendUrl}';
   
   // Generate session ID
   var sessionId = sessionStorage.getItem('ug_session');

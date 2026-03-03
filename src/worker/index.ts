@@ -137,9 +137,9 @@ async function fetchWebsite(url: string, websiteId: string) {
             if (inMaintenance) {
               console.log(`[MAINTENANCE] ${url} - skipping alerts`);
             } else {
-              if (status === 'Down' && consecutiveDownCount >= 2) {
-                // Only notify after 2+ consecutive down checks (2+ minutes)
-                console.log(`[ALERT] ${url} has been DOWN for ${consecutiveDownCount} consecutive checks - sending email`);
+              if (status === 'Down' && consecutiveDownCount >= 1) {
+                // Now notify immediately on the first down check
+                console.log(`[ALERT] ${url} is DOWN - sending notifications`);
                 await NotificationService.checkAndNotifyStatusChange(
                   websiteId,
                   status,
