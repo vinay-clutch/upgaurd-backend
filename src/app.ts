@@ -21,6 +21,10 @@ app.get("/", (req, res) => {
   res.status(200).send("Backend is running");
 });
 
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({ status: "ok" });
+});
+
 // Initialize Redis client for sessions
 const redisClient = createRedisClient();
 redisClient.connect().catch(err => console.error('Redis Session Store Connection Error:', err));
@@ -80,11 +84,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 //
-// 4. HEALTH CHECK
+// 4. (Moved To Top)
 //
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: "ok" });
-});
 
 //
 // 5. ROUTES
