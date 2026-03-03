@@ -3,12 +3,12 @@ import { createClient, RedisClientType } from "redis";
 let client: RedisClientType | null = null;
 
 export function createRedisClient() {
-    const url = process.env.REDIS_URL;
+    const url = process.env.REDIS_URL || "redis://localhost:6379";
     const options: any = { 
         url,
         socket: {
             reconnectStrategy: (retries: number) => {
-                const delay = Math.min(retries * 50, 2000);
+                const delay = Math.min(retries * 50, 5000);
                 return delay;
             }
         }
@@ -21,6 +21,7 @@ export function createRedisClient() {
 
     const c = createClient(options);
     c.on("error", (err) => console.error("Redis Error:", err.message));
+    c.on("connect", () => console.log("✓ Redis connected"));
     return c as RedisClientType;
 }
 
@@ -29,9 +30,8 @@ export async function getRedisClient(): Promise<RedisClientType> {
         client = createRedisClient();
         try {
             await client.connect();
-        } catch (err) {
-            console.error("Initial Redis Connection Failed:", err);
-            // Don't throw, let the client try to reconnect
+        } catch (err: any) {
+            console.error("Initial Redis Connection Failed:", err.message);
         }
     }
     return client;

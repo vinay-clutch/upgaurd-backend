@@ -25,7 +25,6 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
-/*
 // Initialize Redis client for sessions
 const redisClient = createRedisClient();
 redisClient.connect().catch(err => console.error('Redis Session Store Connection Error:', err));
@@ -34,7 +33,6 @@ const redisStore = new RedisStore({
   client: redisClient,
   prefix: "antigravtiven_sess:",
 });
-*/
 
 //
 // 1. CORS CONFIGURATION (Production Ready)
@@ -70,7 +68,7 @@ app.use(express.json());
 
 app.use(
   session({
-    // store: redisStore,
+    store: redisStore,
     secret: SESSION_SECRET || 'fallback_secret',
     resave: false,
     saveUninitialized: false,
