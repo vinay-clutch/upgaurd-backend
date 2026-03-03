@@ -54,7 +54,7 @@ export async function sendSlackAlert(
         type: "context",
         elements: [{
           type: "mrkdwn",
-          text: "Sent by *Antigravtiven Monitoring*"
+          text: "Sent by *UpGuard Monitoring*"
         }]
       }
     ]
@@ -71,7 +71,7 @@ export async function sendSlackAlert(
 export async function sendSlackTestMessage(webhookUrl: string) {
   try {
     await axios.post(webhookUrl, {
-      text: "✅ *Antigravtiven* is now connected! You will receive alerts here when your websites go down."
+      text: "✅ *UpGuard* is now connected! You will receive alerts here when your websites go down."
     });
     return true;
   } catch {

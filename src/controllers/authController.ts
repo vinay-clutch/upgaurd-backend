@@ -9,9 +9,9 @@ dotenv.config();
 export const signup = async(req:Request,res:Response)=>{
     try{
         const {username, password, email} = req.body;
-        if(!username || !password || !email) {
+        if(!username || !password) {
             res.status(400).json({
-                message:"Username, password, and email are required"
+                message:"Username and password are required"
             });
             return;
         }
@@ -20,7 +20,7 @@ export const signup = async(req:Request,res:Response)=>{
             where: {
                 OR: [
                     { username },
-                    { email }
+                    ...(email ? [{ email }] : [])
                 ]
             }
         });
