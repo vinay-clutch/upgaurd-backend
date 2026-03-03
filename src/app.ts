@@ -40,14 +40,14 @@ const redisStore = new RedisStore({
 
 app.use(cors({
   origin: [
-    process.env.CLIENT_URL || 'http://localhost:5173',
-    'https://upgaurd-frontend.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3005'
+    "https://upgaurd-frontend.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    process.env.CLIENT_URL || "https://upgaurd-frontend.vercel.app"
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 // 2. RATE LIMITING
 //
