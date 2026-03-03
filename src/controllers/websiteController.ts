@@ -2,7 +2,11 @@ import { Request, Response } from 'express';
 import prisma from '../lib/db';
 import { NotificationService, diagnoseError } from '../services/notificationService';
 import dotenv from 'dotenv';
+import { Resend } from "resend";
 dotenv.config();
+
+// Initialize Resend with environment variable
+const resend = process.env.Mail_API ? new Resend(process.env.Mail_API) : null;
 
 export const CreateWebsite = async (req: Request, res: Response) => {
     try {
@@ -840,5 +844,70 @@ export const exportCsv = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ message: "Failed to export CSV" });
   }
+};
+
+export const websiteController = {
+  async sendContactEmail(req: Request, res: Response) {
+    try {
+      if (!resend) {
+        return res.status(500).json({
+          success: false,
+          message: "Email service not configured",
+        });
+      }
+
+      const { email, subject, message } = req.body;
+
+      if (!email || !subject || !message) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required fields",
+        });
+      }
+
+      const response = await resend.emails.send({
+        from: "noreply@upgaurd.com",
+        to: email,
+        subject: subject,
+        html: `<h2>${subject}</h2><p>${message}</p><hr><p>From: ${email}</p>`,
+      });
+
+      if (response.error) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to send email",
+          error: response.error,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Email sent successfully",
+        data: response.data,
+      });
+    } catch (error) {
+      console.error("Contact email error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  },
+
+  async getWebsiteStatus(req: Request, res: Response) {
+    try {
+      return res.status(200).json({
+        success: true,
+        status: "Website is running",
+        emailServiceActive: !!resend,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to get website status",
+      });
+    }
+  },
 };
 
