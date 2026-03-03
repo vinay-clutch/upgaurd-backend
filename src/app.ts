@@ -9,8 +9,22 @@ import { analyticsRouter } from './routes/analyticsRouter';
 import { getTrackerScript } from './controllers/trackerController';
 import { SESSION_SECRET, CLIENT_URL } from './lib/config';
 import { scheduleReports } from './services/reportScheduler';
+import { RedisStore } from 'connect-redis';
+import { createRedisClient } from './redis';
 
 const app = express();
+
+// Trust proxy for Railway/Vercel (required for secure cookies)
+app.set('trust proxy', 1);
+
+// Initialize Redis client for sessions
+const redisClient = createRedisClient();
+redisClient.connect().catch(err => console.error('Redis Session Store Connection Error:', err));
+
+const redisStore = new RedisStore({
+  client: redisClient,
+  prefix: "antigravtiven_sess:",
+});
 
 //
 // 1. CORS CONFIGURATION (Production Ready)
@@ -18,7 +32,9 @@ const app = express();
 
 app.use(cors({
   origin: CLIENT_URL,
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 // 2. RATE LIMITING
 //
@@ -44,13 +60,14 @@ app.use(express.json());
 
 app.use(
   session({
+    store: redisStore,
     secret: SESSION_SECRET || 'fallback_secret',
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: 'none'
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
     }
   })
 );

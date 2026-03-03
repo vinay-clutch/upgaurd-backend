@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { createClient } from 'redis';
+import { createRedisClient } from './redis';
 import { createServer } from 'http';
 
 let io: Server;
@@ -19,10 +19,7 @@ export function initSocket(httpServer: any) {
   });
 
   // Setup Redis Subscriber for cross-process communication
-  const redisUrl = process.env.REDIS_URL;
-  const subscriber = redisUrl ? createClient({ url: redisUrl }) : createClient();
-  
-  subscriber.on('error', (err) => console.error('Redis Subscribe Error', err));
+  const subscriber = createRedisClient();
   
   subscriber.connect().then(() => {
     subscriber.subscribe('tick_update', (message) => {
