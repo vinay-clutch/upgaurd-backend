@@ -97,7 +97,13 @@ app.get('/tracker.js', getTrackerScript);
 //
 // 6. BACKGROUND JOB
 //
-scheduleReports();
+setImmediate(() => {
+  try {
+    scheduleReports();
+  } catch (err) {
+    console.error("Report scheduler failed:", err);
+  }
+});
 
 //
 // 7. 404 HANDLER
