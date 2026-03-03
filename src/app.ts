@@ -35,20 +35,29 @@ const redisStore = new RedisStore({
 });
 
 //
-// 1. CORS CONFIGURATION (Production Ready)
-//
+// 1. CORS CONFIGURATION (Robust Dynamic Origin)
+const allowedOrigins = [
+  "https://upgaurd-frontend.vercel.app",
+  "http://localhost:3000",
+  "http://localhost:5173",
+  process.env.CLIENT_URL || 'https://upgaurd-frontend.vercel.app'
+];
 
 app.use(cors({
-  origin: [
-    "https://upgaurd-frontend.vercel.app",
-    "http://localhost:3000",
-    "http://localhost:5173",
-    process.env.CLIENT_URL || "https://upgaurd-frontend.vercel.app"
-  ],
+  origin: function (origin: any, callback: any) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200
 }));
+app.options('*', cors());
 // 2. RATE LIMITING
 //
 const limiter = rateLimit({
@@ -95,9 +104,9 @@ app.use(passport.session());
 //
 // 5. ROUTES
 //
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/websites', websiteRouter);
-app.use('/api/v1/analytics', analyticsRouter);
+app.use(['/api/v1/auth', '/api/auth'], authRouter);
+app.use(['/api/v1/websites', '/api/websites'], websiteRouter);
+app.use(['/api/v1/analytics', '/api/analytics'], analyticsRouter);
 app.get('/tracker.js', getTrackerScript);
 
 //
