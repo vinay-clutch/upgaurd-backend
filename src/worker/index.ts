@@ -81,7 +81,7 @@ async function fetchWebsite(url: string, websiteId: string) {
       url,
       {
         agent,
-        headers: { "User-Agent": "Antigravtiven-Worker/1.0" },
+        headers: { "User-Agent": "UpGuard-Worker/1.0" },
       },
       (res) => {
         res.on("data", () => {}); // drain
@@ -175,7 +175,7 @@ async function fetchWebsite(url: string, websiteId: string) {
                   notificationCache.set(slowCacheKey, now);
                   
                   await resend.emails.send({
-                    from: 'Antigravtiven <onboarding@resend.dev>',
+                    from: 'UpGuard <onboarding@resend.dev>',
                     to: website.user.email,
                     subject: `⚠️ Slow Response Alert - ${url}`,
                     html: `
@@ -189,7 +189,7 @@ async function fetchWebsite(url: string, websiteId: string) {
                           <p><strong>Time:</strong> ${new Date().toUTCString()}</p>
                         </div>
                         <p style="color:#94a3b8">This could indicate server overload or network issues.</p>
-                        <p style="color:#64748b;font-size:12px">Antigravtiven Monitoring • Alert sent once per 6 hours</p>
+                        <p style="color:#64748b;font-size:12px">UpGuard Monitoring • Alert sent once per 6 hours</p>
                       </div>
                     `
                   });

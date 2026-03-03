@@ -31,7 +31,7 @@ redisClient.connect().catch(err => console.error('Redis Session Store Connection
 
 const redisStore = new RedisStore({
   client: redisClient,
-  prefix: "antigravtiven_sess:",
+  prefix: "upguard_sess:",
 });
 
 //
