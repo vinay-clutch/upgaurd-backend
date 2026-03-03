@@ -1,19 +1,19 @@
 import https from "https";
 import http from "http";
 import { URL } from "url";
-import { xAckBulk, xReadGroup } from "../redis";
+import { createRedisClient, xAckBulk, xReadGroup } from "../redis";
 import prisma from "../lib/db";
 import { NotificationService } from "../services/notificationService";
 import { recordCheck } from "../services/downtimeTracker";
 import dotenv from "dotenv";
 import { Resend } from 'resend';
 import { publishSocketEvent } from '../services/socketPublisher';
-import { createClient } from 'redis';
+
 dotenv.config();
 
 setInterval(async () => {
   try {
-    const redis = createClient({ url: process.env.REDIS_URL });
+    const redis = createRedisClient();
     await redis.connect();
     await redis.set('worker_heartbeat', Date.now().toString());
     await redis.disconnect();

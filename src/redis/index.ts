@@ -1,13 +1,38 @@
 import { createClient, RedisClientType } from "redis";
 
-let client: RedisClientType;
+let client: RedisClientType | null = null;
 
-async function getRedisClient(): Promise<RedisClientType> {
+export function createRedisClient() {
+    const url = process.env.REDIS_URL;
+    const options: any = { 
+        url,
+        socket: {
+            reconnectStrategy: (retries: number) => {
+                const delay = Math.min(retries * 50, 2000);
+                return delay;
+            }
+        }
+    };
+
+    if (url?.startsWith('rediss://')) {
+        options.socket.tls = true;
+        options.socket.rejectUnauthorized = false;
+    }
+
+    const c = createClient(options);
+    c.on("error", (err) => console.error("Redis Error:", err.message));
+    return c as RedisClientType;
+}
+
+export async function getRedisClient(): Promise<RedisClientType> {
     if (!client) {
-        const url = process.env.REDIS_URL;
-        client = url ? createClient({ url }) : createClient();
-        client.on("error", (err) => console.error("Redis Client Error", err));
-        await client.connect();
+        client = createRedisClient();
+        try {
+            await client.connect();
+        } catch (err) {
+            console.error("Initial Redis Connection Failed:", err);
+            // Don't throw, let the client try to reconnect
+        }
     }
     return client;
 }
@@ -19,8 +44,7 @@ export async function disconnectRedis(): Promise<void> {
         } catch (_) {
             // ignore
         }
-        // @ts-expect-error reset for tests
-        client = undefined;
+        client = null;
     }
 }
 
