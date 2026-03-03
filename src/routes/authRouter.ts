@@ -11,13 +11,13 @@ authRouter.post('/signup', signup);
 authRouter.post('/signin', signin);
 authRouter.get('/me', authMiddleware, me);
 
-authRouter.get('/google', 
+authRouter.get('/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
-authRouter.get('/google/callback', 
-  passport.authenticate('google', { 
-    failureRedirect: `${CLIENT_URL}/login?error=oauth_failed` 
+authRouter.get('/google/callback',
+  passport.authenticate('google', {
+    failureRedirect: '/api/auth/signin'
   }),
   googleCallback
 );
