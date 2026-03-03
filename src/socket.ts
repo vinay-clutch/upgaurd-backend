@@ -5,21 +5,32 @@ import { createServer } from 'http';
 let io: Server;
 
 export function initSocket(httpServer: any) {
+  const allowedOrigins = [
+    "https://upgaurd-frontend.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    process.env.CLIENT_URL || 'https://upgaurd-frontend.vercel.app'
+  ];
+
   io = new Server(httpServer, {
     cors: {
-      origin: [
-        "https://upgaurd-frontend.vercel.app",
-        "http://localhost:3000",
-        "http://localhost:5173",
-        process.env.CLIENT_URL || "https://upgaurd-frontend.vercel.app"
-      ],
-      methods: ["GET", "POST"]
-    }
+      origin: function (origin: any, callback: any) {
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
+      methods: ["GET", "POST"],
+      credentials: true
+    },
+    transports: ["websocket", "polling"],
   });
 
   io.on('connection', (socket) => {
+    console.log("✅ Client connected:", socket.id);
     socket.on('disconnect', () => {
-      // client disconnected
+      console.log("❌ Client disconnected:", socket.id);
     });
   });
 
