@@ -35,7 +35,6 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "prisma": "^6.13.0",
-    "puppeteer": "^24.37.5",
     "redis": "^5.8.0",
     "resend": "^6.0.1",
     "socket.io": "^4.8.3"

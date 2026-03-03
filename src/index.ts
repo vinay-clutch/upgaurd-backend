@@ -7,7 +7,7 @@ import { getRedisClient } from './redis';
 const httpServer = createServer(app);
 initSocket(httpServer);
 
-const PORT = Number(process.env.PORT) || 8080;
+const PORT = Number(process.env.PORT) || 3005;
 
 async function startServer() {
   try {
