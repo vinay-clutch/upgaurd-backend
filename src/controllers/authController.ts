@@ -9,22 +9,33 @@ dotenv.config();
 export const signup = async(req:Request,res:Response)=>{
     try{
         const {username, password, email} = req.body;
-        if(!username || !password) {
+        if(!username || !password || !email) {
             res.status(400).json({
-                message:"username or password is missing"
+                message:"Username, password, and email are required"
             });
             return;
         }
 
-        if (email) {
-            const existingOAuthUser = await prisma.user.findUnique({
-                where: { email }
-            });
-            
-            if (existingOAuthUser && existingOAuthUser.google_id) {
-                res.status(400).json({
-                    message: "An account with this email already exists. Please sign in with Google."
-                });
+        const existingUser = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { username },
+                    { email }
+                ]
+            }
+        });
+        
+        if (existingUser) {
+            if (existingUser.username === username) {
+                res.status(400).json({ message: "Username already taken" });
+                return;
+            }
+            if (existingUser.email === email) {
+                if (existingUser.google_id) {
+                    res.status(400).json({ message: "An account with this email already exists. Please sign in with Google." });
+                } else {
+                    res.status(400).json({ message: "An account with this email already exists." });
+                }
                 return;
             }
         }
