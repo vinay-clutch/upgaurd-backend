@@ -7,7 +7,12 @@ let io: Server;
 export function initSocket(httpServer: any) {
   io = new Server(httpServer, {
     cors: {
-      origin: "*",
+      origin: [
+        "https://upgaurd-frontend.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        process.env.CLIENT_URL || "https://upgaurd-frontend.vercel.app"
+      ],
       methods: ["GET", "POST"]
     }
   });
