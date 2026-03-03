@@ -39,7 +39,12 @@ const redisStore = new RedisStore({
 //
 
 app.use(cors({
-  origin: CLIENT_URL,
+  origin: [
+    process.env.CLIENT_URL || 'http://localhost:5173',
+    'https://upgaurd-frontend.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3005'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

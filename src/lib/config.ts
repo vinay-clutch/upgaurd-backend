@@ -1,19 +1,11 @@
-import dotenv from 'dotenv';
-dotenv.config();
+import 'dotenv/config';
 
-export const JWTSECRET = process.env.JWT || 'alsfdadflasdflkasdjfaklsd';
-
-// Google OAuth (optional – safe for Railway)
-export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-export const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
-
-export const SESSION_SECRET =
-  process.env.SESSION_SECRET || 'your-session-secret';
-
-// Strict CLIENT_URL logic
-const rawClientUrl = process.env.CLIENT_URL || '';
-if (!rawClientUrl && process.env.NODE_ENV === 'production') {
-  throw new Error('FATAL: CLIENT_URL environment variable is missing in production!');
-}
-
-export const CLIENT_URL = rawClientUrl.replace(/\/$/, '');
+export const JWT_SECRET = process.env.JWT || 'fallback_jwt_secret';
+export const SESSION_SECRET = process.env.SESSION_SECRET || 'fallback_session';
+export const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+export const DATABASE_URL = process.env.DATABASE_URL;
+export const REDIS_URL = process.env.REDIS_URL;
+export const REGION_ID = process.env.REGION_ID || 'us-east-1';
+export const WORKER_ID = process.env.WORKER_ID || 'worker-1';
+export const Mail_API = process.env.Mail_API;
+export const NODE_ENV = process.env.NODE_ENV || 'development';
