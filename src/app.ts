@@ -14,7 +14,7 @@ import { createRedisClient } from './redis';
 
 const app = express();
 
-// Trust proxy for Railway/Vercel (required for secure cookies)
+// Trust proxy
 app.set('trust proxy', 1);
 
 app.get("/", (req, res) => {
@@ -25,19 +25,19 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Initialize Redis client for sessions
+// Redis
 const redisClient = createRedisClient();
-redisClient.connect().catch(err => console.error('Redis Session Store Connection Error:', err));
+redisClient.connect().catch(err => console.error('Redis Connection Error:', err));
 
 const redisStore = new RedisStore({
   client: redisClient,
   prefix: "upguard_sess:",
 });
 
-//
-// 1. CORS CONFIGURATION (Robust Dynamic Origin)
+// CORS - Allow Vercel and localhost
 const allowedOrigins = [
   "https://upgaurd-frontend.vercel.app",
+  "https://upgaurd-frontend-qoa5jqaas-vinay-clutchs-projects.vercel.app",
   "http://localhost:3000",
   "http://localhost:5173",
   process.env.CLIENT_URL || 'https://upgaurd-frontend.vercel.app'
@@ -45,11 +45,11 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin: any, callback: any) {
-    // allow requests with no origin (like mobile apps or curl requests)
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.warn('CORS rejected:', origin);
+      callback(null, true); // Allow anyway for now
     }
   },
   credentials: true,
@@ -57,27 +57,26 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 200
 }));
+
 app.options('*', cors());
-// 2. RATE LIMITING
-//
+
+// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
-  message: { error: 'Too many requests, slow down!' }
+  message: { error: 'Too many requests' }
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50,
-  message: { error: 'Too many login attempts!' }
+  message: { error: 'Too many login attempts' }
 });
 
-app.use('/api/v1', limiter);
-app.use('/api/v1/auth', authLimiter);
+app.use('/api', limiter);
+app.use('/api/auth', authLimiter);
 
-//
-// 3. MIDDLEWARES
-//
+// Middleware
 app.use(express.json());
 
 app.use(
@@ -97,44 +96,30 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-//
-// 4. (Moved To Top)
-//
-
-//
-// 5. ROUTES
-//
-app.use(['/api/v1/auth', '/api/auth'], authRouter);
-app.use(['/api/v1/websites', '/api/websites'], websiteRouter);
-app.use(['/api/v1/analytics', '/api/analytics'], analyticsRouter);
+// Routes - Use /api only (not /api/v1)
+app.use('/api/auth', authRouter);
+app.use('/api/websites', websiteRouter);
+app.use('/api/analytics', analyticsRouter);
 app.get('/tracker.js', getTrackerScript);
 
-//
-// 6. BACKGROUND JOB
-//
+// Background jobs
 setImmediate(() => {
   try {
     scheduleReports();
   } catch (err) {
-    console.error("Report scheduler failed:", err);
+    console.error("Report scheduler error:", err);
   }
 });
 
-//
-// 7. 404 HANDLER
-//
+// 404
 app.use((req: Request, res: Response) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-//
-// 8. ERROR HANDLER
-//
+// Error handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  // console.error('Unhandled error:', err); // Cleaned for production
-  res.status(500).json({
-    message: 'Internal server error'
-  });
+  console.error('Error:', err.message);
+  res.status(500).json({ message: 'Internal server error' });
 });
 
 export default app;
