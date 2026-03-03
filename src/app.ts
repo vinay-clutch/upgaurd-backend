@@ -17,6 +17,10 @@ const app = express();
 // Trust proxy for Railway/Vercel (required for secure cookies)
 app.set('trust proxy', 1);
 
+app.get("/", (req, res) => {
+  res.status(200).send("Backend is running");
+});
+
 // Initialize Redis client for sessions
 const redisClient = createRedisClient();
 redisClient.connect().catch(err => console.error('Redis Session Store Connection Error:', err));
@@ -79,10 +83,7 @@ app.use(passport.session());
 // 4. HEALTH CHECK
 //
 app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({
-    status: 'ok',
-    service: 'Antigravtiven Backend'
-  });
+  res.status(200).json({ status: "ok" });
 });
 
 //
