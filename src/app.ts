@@ -7,14 +7,13 @@ import { authRouter } from './routes/authRouter';
 import { websiteRouter } from './routes/websiteRouter';
 import { analyticsRouter } from './routes/analyticsRouter';
 import { getTrackerScript } from './controllers/trackerController';
-import { SESSION_SECRET, CLIENT_URL } from './lib/config';
+import { SESSION_SECRET } from './lib/config';
 import { scheduleReports } from './services/reportScheduler';
 import { RedisStore } from 'connect-redis';
 import { createRedisClient } from './redis';
 
 const app = express();
 
-// Trust proxy
 app.set('trust proxy', 1);
 
 app.get("/", (req, res) => {
@@ -25,22 +24,18 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Redis
 const redisClient = createRedisClient();
-redisClient.connect().catch(err => console.error('Redis Connection Error:', err));
+redisClient.connect().catch(err => console.error('Redis error:', err));
 
 const redisStore = new RedisStore({
   client: redisClient,
   prefix: "upguard_sess:",
 });
 
-// CORS - Allow Vercel and localhost
 const allowedOrigins = [
   "https://upgaurd-frontend.vercel.app",
-  "https://upgaurd-frontend-qoa5jqaas-vinay-clutchs-projects.vercel.app",
   "http://localhost:3000",
   "http://localhost:5173",
-  process.env.CLIENT_URL || 'https://upgaurd-frontend.vercel.app'
 ];
 
 app.use(cors({
@@ -48,8 +43,7 @@ app.use(cors({
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.warn('CORS rejected:', origin);
-      callback(null, true); // Allow anyway for now
+      callback(null, true);
     }
   },
   credentials: true,
@@ -60,7 +54,6 @@ app.use(cors({
 
 app.options('*', cors());
 
-// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -76,7 +69,6 @@ const authLimiter = rateLimit({
 app.use('/api', limiter);
 app.use('/api/auth', authLimiter);
 
-// Middleware
 app.use(express.json());
 
 app.use(
@@ -96,27 +88,23 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Routes - Use /api only (not /api/v1)
 app.use('/api/auth', authRouter);
 app.use('/api/websites', websiteRouter);
 app.use('/api/analytics', analyticsRouter);
 app.get('/tracker.js', getTrackerScript);
 
-// Background jobs
 setImmediate(() => {
   try {
     scheduleReports();
   } catch (err) {
-    console.error("Report scheduler error:", err);
+    console.error("Scheduler error:", err);
   }
 });
 
-// 404
 app.use((req: Request, res: Response) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-// Error handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('Error:', err.message);
   res.status(500).json({ message: 'Internal server error' });
