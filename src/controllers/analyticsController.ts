@@ -253,3 +253,26 @@ export const resolveError = async (req: Request, res: Response) => {
     res.status(500).json({ message: "internal server error" });
   }
 };
+
+// Get all errors for a website
+export const getErrors = async (req: Request, res: Response) => {
+  try {
+    const websiteId = req.params.websiteId;
+    const site = await prisma.analytics_site.findUnique({
+      where: { website_id: websiteId }
+    });
+
+    if (!site) {
+      return res.status(404).json({ message: "Analytics not enabled for this site" });
+    }
+
+    const errors = await prisma.js_error.findMany({
+      where: { site_id: site.id },
+      orderBy: { timestamp: 'desc' }
+    });
+
+    res.json(errors);
+  } catch (error) {
+    res.status(500).json({ message: "internal server error" });
+  }
+};

@@ -1,34 +1,37 @@
-import { Router } from 'express';
-import { CreateWebsite, websiteStatus, getUserWebsites, updateUserEmail, deleteWebsite, sendReport, getDashboardStats, pauseWebsite, resumeWebsite, getIncidentHistory, getSslStatus, getPublicStatus, updateDiscordWebhook, removeDiscordWebhook, downloadPdfReport, updateSlackWebhook, removeSlackWebhook, updateWebsiteTags, getUptimeBadge, getSecurityHeaders, updateCheckInterval, setMaintenance, clearMaintenance, exportCsv } from '../controllers/websiteController';
-
+import express from 'express';
 import { authMiddleware } from '../middlewares/authmiddleware';
+import {
+  createWebsite,
+  getWebsites,
+  getWebsiteStatus,
+  deleteWebsite,
+  pauseWebsite,
+  resumeWebsite,
+  getIncidentHistory,
+  getSslStatus,
+  updateCheckInterval,
+  setMaintenance,
+  clearMaintenance,
+  updateWebsiteTags,
+  getSecurityHeaders,
+} from '../controllers/websiteController';
 
-export const websiteRouter = Router();
-
-// Public route - no auth required
-websiteRouter.get('/public/:websiteId', getPublicStatus);
-websiteRouter.get('/badge/:websiteId', getUptimeBadge);
+export const websiteRouter = express.Router();
 
 websiteRouter.use(authMiddleware);
-websiteRouter.post('/', CreateWebsite);
-websiteRouter.get('/', getUserWebsites);
-websiteRouter.delete('/:websiteId', deleteWebsite);
-websiteRouter.get('/dashboard', getDashboardStats);
-websiteRouter.get('/:websiteId/status', websiteStatus);
-websiteRouter.post('/:websiteId/report', sendReport);
-websiteRouter.put('/user/email', updateUserEmail);
-websiteRouter.post('/:websiteId/pause', pauseWebsite);
-websiteRouter.post('/:websiteId/resume', resumeWebsite);
-websiteRouter.get('/:websiteId/incidents', getIncidentHistory);
-websiteRouter.get('/:websiteId/ssl', getSslStatus);
-websiteRouter.put('/user/discord', updateDiscordWebhook);
-websiteRouter.delete('/user/discord', removeDiscordWebhook);
-websiteRouter.get('/:websiteId/report/pdf', downloadPdfReport);
-websiteRouter.put('/user/slack', updateSlackWebhook);
-websiteRouter.delete('/user/slack', removeSlackWebhook);
-websiteRouter.put('/:websiteId/tags', updateWebsiteTags);
-websiteRouter.get('/:websiteId/security', getSecurityHeaders);
-websiteRouter.put('/:websiteId/interval', updateCheckInterval);
-websiteRouter.put('/:websiteId/maintenance', setMaintenance);
-websiteRouter.delete('/:websiteId/maintenance', clearMaintenance);
-websiteRouter.get('/:websiteId/export/csv', exportCsv);
+
+websiteRouter.post('/', createWebsite);
+websiteRouter.get('/', getWebsites);
+websiteRouter.get('/:id/status', getWebsiteStatus);
+websiteRouter.delete('/:id', deleteWebsite);
+websiteRouter.post('/:id/pause', pauseWebsite);
+websiteRouter.post('/:id/resume', resumeWebsite);
+websiteRouter.get('/:id/incidents', getIncidentHistory);
+websiteRouter.get('/:id/ssl', getSslStatus);
+websiteRouter.put('/:id/interval', updateCheckInterval);
+websiteRouter.put('/:id/maintenance', setMaintenance);
+websiteRouter.delete('/:id/maintenance', clearMaintenance);
+websiteRouter.put('/:id/tags', updateWebsiteTags);
+websiteRouter.get('/:id/security', getSecurityHeaders);
+
+export default websiteRouter;

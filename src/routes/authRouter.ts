@@ -3,7 +3,6 @@ import passport from '../config/passport';
 import { signin, signup, me } from '../controllers/authController';
 import { googleCallback } from '../controllers/oauthController';
 import { authMiddleware } from '../middlewares/authmiddleware';
-import { CLIENT_URL } from '../lib/config';
 
 export const authRouter = express.Router();
 
@@ -30,3 +29,5 @@ authRouter.post('/logout', (req, res) => {
     res.json({ message: 'Logged out successfully' });
   });
 });
+
+export default authRouter;
