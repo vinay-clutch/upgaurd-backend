@@ -28,7 +28,7 @@ export const getTrackerScript = (req: Request, res: Response) => {
 
   // Track page view
   function trackPageView() {
-    fetch(API + '/api/v1/analytics/track/pageview', {
+    fetch(API + '/api/analytics/track/pageview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -42,7 +42,7 @@ export const getTrackerScript = (req: Request, res: Response) => {
 
   // Track JS errors
   window.onerror = function(message, source, line, col, error) {
-    fetch(API + '/api/v1/analytics/track/error', {
+    fetch(API + '/api/analytics/track/error', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -56,7 +56,7 @@ export const getTrackerScript = (req: Request, res: Response) => {
 
   // Track unhandled promise rejections
   window.onunhandledrejection = function(event) {
-    fetch(API + '/api/v1/analytics/track/error', {
+    fetch(API + '/api/analytics/track/error', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -72,7 +72,7 @@ export const getTrackerScript = (req: Request, res: Response) => {
   window.addEventListener('beforeunload', function() {
     var duration = Math.round((Date.now() - sessionStart) / 1000);
     navigator.sendBeacon(
-      API + '/api/v1/analytics/track/session-end',
+      API + '/api/analytics/track/session-end',
       JSON.stringify({
         site_id: siteId,
         session_id: sessionId,
