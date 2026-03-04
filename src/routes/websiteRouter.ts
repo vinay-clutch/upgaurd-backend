@@ -15,17 +15,18 @@ import {
   updateWebsiteTags,
   getSecurityHeaders,
   getUptimeBadge,
-  getPublicStatus,
   downloadPdfReport,
   exportCsv,
+  getPublicStatus
 } from '../controllers/websiteController';
 
 export const websiteRouter = express.Router();
 
-// Public routes
+// PUBLIC routes - NO auth needed - MUST be before authMiddleware
 websiteRouter.get('/badge/:id', getUptimeBadge);
 websiteRouter.get('/public/:id', getPublicStatus);
 
+// All routes below require auth
 websiteRouter.use(authMiddleware);
 
 websiteRouter.post('/', createWebsite);
