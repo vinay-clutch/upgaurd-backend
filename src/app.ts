@@ -51,7 +51,7 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
-app.options('*', cors());
+app.options('(.*)', cors());
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
