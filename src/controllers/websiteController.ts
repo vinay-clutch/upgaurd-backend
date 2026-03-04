@@ -8,7 +8,7 @@ dotenv.config();
 // Initialize Resend with environment variable
 const resend = process.env.Mail_API ? new Resend(process.env.Mail_API) : null;
 
-export const CreateWebsite = async (req: Request, res: Response) => {
+export const createWebsite = async (req: Request, res: Response) => {
     try {
         const { url } = req.body;
         if (!url) {
@@ -53,7 +53,7 @@ export const CreateWebsite = async (req: Request, res: Response) => {
 
 export const deleteWebsite = async (req: Request, res: Response) => {
     try {
-        const websiteId = req.params.websiteId as string;
+        const websiteId = req.params.id as string;
         const website = await prisma.website.findFirst({
             where: { id: websiteId, user_id: req.userId! }
         });
@@ -66,9 +66,9 @@ export const deleteWebsite = async (req: Request, res: Response) => {
     }
 };
 
-export const websiteStatus = async (req: Request, res: Response) => {
+export const getWebsiteStatus = async (req: Request, res: Response) => {
     try {
-        const websiteId = req.params.websiteId as string;
+        const websiteId = req.params.id as string;
         const website = await prisma.website.findFirst({
             where: { user_id: req.userId!, id: websiteId }
         });
@@ -152,7 +152,7 @@ export const websiteStatus = async (req: Request, res: Response) => {
     }
 };
 
-export const getUserWebsites = async (req: Request, res: Response) => {
+export const getWebsites = async (req: Request, res: Response) => {
     try {
         const websites = await prisma.website.findMany({
             where: { user_id: req.userId! },
@@ -197,7 +197,7 @@ export const getUserWebsites = async (req: Request, res: Response) => {
 
 export const pauseWebsite = async (req: Request, res: Response) => {
     try {
-        const websiteId = req.params.websiteId as string;
+        const websiteId = req.params.id as string;
         const website = await prisma.website.findFirst({
             where: { id: websiteId, user_id: req.userId! }
         });
@@ -214,7 +214,7 @@ export const pauseWebsite = async (req: Request, res: Response) => {
 
 export const resumeWebsite = async (req: Request, res: Response) => {
     try {
-        const websiteId = req.params.websiteId as string;
+        const websiteId = req.params.id as string;
         const website = await prisma.website.findFirst({
             where: { id: websiteId, user_id: req.userId! }
         });
@@ -278,7 +278,7 @@ export const updateUserEmail = async (req: Request, res: Response) => {
 
 export const sendReport = async (req: Request, res: Response) => {
     try {
-        const websiteId = req.params.websiteId as string;
+        const websiteId = req.params.id as string;
         const period = (req.query.period as string) === 'monthly' ? 'monthly' : 'weekly';
         const website = await prisma.website.findFirst({
             where: { id: websiteId, user_id: req.userId! }
@@ -293,7 +293,7 @@ export const sendReport = async (req: Request, res: Response) => {
 
 export const getIncidentHistory = async (req: Request, res: Response) => {
     try {
-        const websiteId = req.params.websiteId as string;
+        const websiteId = req.params.id as string;
         const website = await prisma.website.findFirst({
             where: { id: websiteId, user_id: req.userId! }
         });
@@ -360,7 +360,7 @@ export const getIncidentHistory = async (req: Request, res: Response) => {
 
 export const getSslStatus = async (req: Request, res: Response) => {
     try {
-        const websiteId = req.params.websiteId as string;
+        const websiteId = req.params.id as string;
         const website = await prisma.website.findFirst({
             where: { id: websiteId, user_id: req.userId! }
         });
@@ -389,7 +389,7 @@ export const getSslStatus = async (req: Request, res: Response) => {
 
 export const getPublicStatus = async (req: Request, res: Response) => {
     try {
-        const websiteId = req.params.websiteId as string;
+        const websiteId = req.params.id as string;
         const website = await prisma.website.findFirst({
             where: { id: websiteId }
         });
@@ -510,7 +510,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 export const downloadPdfReport = async (req: Request, res: Response) => {
   try {
     const website = await prisma.website.findFirst({
-      where: { id: req.params.websiteId, user_id: req.userId! }
+      where: { id: req.params.id, user_id: req.userId! }
     });
     if (!website) { 
       res.status(404).json({ message: "Not found" }); 
@@ -520,7 +520,7 @@ export const downloadPdfReport = async (req: Request, res: Response) => {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const ticks = await prisma.website_tick.findMany({
       where: { 
-        website_id: req.params.websiteId, 
+        website_id: req.params.id, 
         createdAt: { gte: since } 
       },
       orderBy: { createdAt: 'desc' }
@@ -643,14 +643,14 @@ export const updateWebsiteTags = async (req: Request, res: Response) => {
   try {
     const { tags } = req.body;
     const website = await prisma.website.findFirst({
-      where: { id: req.params.websiteId, user_id: req.userId! }
+      where: { id: req.params.id, user_id: req.userId! }
     });
     if (!website) { 
       res.status(404).json({ message: "Not found" }); 
       return; 
     }
     await prisma.website.update({
-      where: { id: req.params.websiteId },
+      where: { id: req.params.id },
       data: { tags }
     });
     res.json({ message: "Tags updated!" });
@@ -662,7 +662,7 @@ export const updateWebsiteTags = async (req: Request, res: Response) => {
 export const getUptimeBadge = async (req: Request, res: Response) => {
   try {
     const website = await prisma.website.findFirst({
-      where: { id: req.params.websiteId }
+      where: { id: req.params.id }
     });
     if (!website) {
       res.status(404).send('Not found');
@@ -670,7 +670,7 @@ export const getUptimeBadge = async (req: Request, res: Response) => {
     }
 
     const ticks = await prisma.website_tick.findMany({
-      where: { website_id: req.params.websiteId },
+      where: { website_id: req.params.id },
       orderBy: { createdAt: 'desc' },
       take: 100
     });
@@ -733,7 +733,7 @@ export const getUptimeBadge = async (req: Request, res: Response) => {
 export const getSecurityHeaders = async (req: Request, res: Response) => {
   try {
     const website = await prisma.website.findFirst({
-      where: { id: req.params.websiteId, user_id: req.userId! }
+      where: { id: req.params.id, user_id: req.userId! }
     });
     if (!website) { 
       res.status(404).json({ message: "Not found" }); 
@@ -755,7 +755,7 @@ export const updateCheckInterval = async (req: Request, res: Response) => {
       return;
     }
     await prisma.website.update({
-      where: { id: req.params.websiteId, user_id: req.userId! },
+      where: { id: req.params.id, user_id: req.userId! },
       data: { check_interval: interval }
     });
     res.json({ message: "Interval updated" });
@@ -768,14 +768,14 @@ export const setMaintenance = async (req: Request, res: Response) => {
   try {
     const { start, end, note } = req.body;
     const website = await prisma.website.findFirst({
-      where: { id: req.params.websiteId, user_id: req.userId! }
+      where: { id: req.params.id, user_id: req.userId! }
     });
     if (!website) { 
       res.status(404).json({ message: "Not found" }); 
       return; 
     }
     await prisma.website.update({
-      where: { id: req.params.websiteId },
+      where: { id: req.params.id },
       data: { 
         maintenance_start: start ? new Date(start) : null,
         maintenance_end: end ? new Date(end) : null,
@@ -791,7 +791,7 @@ export const setMaintenance = async (req: Request, res: Response) => {
 export const clearMaintenance = async (req: Request, res: Response) => {
   try {
     await prisma.website.update({
-      where: { id: req.params.websiteId },
+      where: { id: req.params.id },
       data: { 
         maintenance_start: null,
         maintenance_end: null,
@@ -807,7 +807,7 @@ export const clearMaintenance = async (req: Request, res: Response) => {
 export const exportCsv = async (req: Request, res: Response) => {
   try {
     const website = await prisma.website.findFirst({
-      where: { id: req.params.websiteId, user_id: req.userId! }
+      where: { id: req.params.id, user_id: req.userId! }
     });
     if (!website) { 
       res.status(404).json({ message: "Not found" }); 
@@ -819,7 +819,7 @@ export const exportCsv = async (req: Request, res: Response) => {
 
     const ticks = await prisma.website_tick.findMany({
       where: { 
-        website_id: req.params.websiteId,
+        website_id: req.params.id,
         createdAt: { gte: since }
       },
       orderBy: { createdAt: 'desc' }
@@ -895,7 +895,7 @@ export const websiteController = {
     }
   },
 
-  async getWebsiteStatus(req: Request, res: Response) {
+  async getSystemStatus(req: Request, res: Response) {
     try {
       return res.status(200).json({
         success: true,
