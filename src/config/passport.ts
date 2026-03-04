@@ -6,16 +6,15 @@ import {
   GOOGLE_CLIENT_SECRET,
 } from '../lib/config';
 
-// ✅ Only initialize Google if credentials exist
 if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
-  console.log('Google OAuth Enabled');
-
+  console.log('✅ Google OAuth Enabled');
   passport.use(
     new GoogleStrategy(
       {
         clientID: GOOGLE_CLIENT_ID,
         clientSecret: GOOGLE_CLIENT_SECRET,
         callbackURL: '/api/auth/google/callback',
+        proxy: true,
       },
       async (
         accessToken: string,
@@ -24,7 +23,9 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
         done: (error: any, user?: any | false | null) => void
       ) => {
         try {
-          // Check if user exists with google_id
+          const email = profile.emails?.[0]?.value;
+          
+          // 1. Try finding by google_id
           let user = await prisma.user.findUnique({
             where: { google_id: profile.id },
           });
@@ -33,52 +34,52 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
             return done(null, user);
           }
 
-          // Check by email if google_id not found
-          const email = profile.emails?.[0]?.value;
-
+          // 2. If not found by google_id, try finding by email
           if (email) {
-            const existingEmailUser = await prisma.user.findUnique({
+            user = await prisma.user.findUnique({
               where: { email },
             });
 
-            if (existingEmailUser) {
+            if (user) {
+              // Update user with google_id
               user = await prisma.user.update({
-                where: { id: existingEmailUser.id },
+                where: { id: user.id },
                 data: {
                   google_id: profile.id,
-                  name: profile.displayName || null,
-                  picture: profile.photos?.[0]?.value || null,
                   auth_provider: 'google',
-                },
+                  picture: profile.photos?.[0]?.value || null,
+                  name: profile.displayName || null
+                }
               });
               return done(null, user);
             }
           }
 
-          // Create new user
+          // 3. Create new user if still not found
           user = await prisma.user.create({
             data: {
+              email: email || '',
+              username: profile.displayName ? `${profile.displayName}_${Math.random().toString(36).substr(2, 5)}` : profile.id,
               google_id: profile.id,
-              email: email || null,
               name: profile.displayName || null,
               picture: profile.photos?.[0]?.value || null,
               auth_provider: 'google',
+              password: '', // OAuth users don't need a password
             },
           });
 
           done(null, user);
         } catch (error) {
-          console.error('Google OAuth error:', error);
-          done(error, null);
+          console.error("Google OAuth Strategy Error:", error);
+          done(error);
         }
       }
     )
   );
 } else {
-  console.log('Google OAuth Disabled (No credentials)');
+  console.log('⚠️ Google OAuth Disabled (No credentials)');
 }
 
-// Session handling
 passport.serializeUser((user: any, done) => {
   done(null, user.id);
 });
@@ -90,8 +91,7 @@ passport.deserializeUser(async (id: string, done) => {
     });
     done(null, user);
   } catch (error) {
-    console.error('Passport deserialize error:', error);
-    done(error, null);
+    done(error);
   }
 });
 
