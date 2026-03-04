@@ -13,7 +13,6 @@ import { RedisStore } from 'connect-redis';
 import { createRedisClient } from './redis';
 
 const app = express();
-
 app.set('trust proxy', 1);
 
 app.get("/", (req, res) => {
@@ -40,7 +39,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin: any, callback: any) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(null, true);
@@ -68,7 +67,6 @@ const authLimiter = rateLimit({
 
 app.use('/api', limiter);
 app.use('/api/auth', authLimiter);
-
 app.use(express.json());
 
 app.use(
