@@ -45,6 +45,19 @@ export const createWebsite = async (req: Request, res: Response) => {
         const website = await prisma.website.create({
             data: { url, user_id: req.userId!, time_added: new Date() }
         });
+
+        // Send welcome email for newly added website
+        const user = await prisma.user.findUnique({
+            where: { id: req.userId! },
+            select: { email: true }
+        });
+
+        if (user?.email) {
+            import('../services/notificationService').then(({ notificationService }) => {
+                notificationService.sendWebsiteAddedEmail(user.email!, url);
+            });
+        }
+
         res.json({ id: website.id, url: website.url });
     } catch (error) {
         res.status(500).json({ message: "internal server error" });
@@ -483,10 +496,22 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             where: { user_id: req.userId! },
             include: { ticks: { orderBy: { createdAt: 'desc' }, take: 10 } }
         });
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const total = websites.length;
         const up = websites.filter((w: any) => w.ticks?.[0]?.status === 'Up').length;
         const down = websites.filter((w: any) => w.ticks?.[0]?.status === 'Down').length;
-        const unknown = websites.filter((w: any) => !w.ticks || w.ticks.length === 0 || w.ticks[0]?.status === 'Unknown').length;
+        
+        // Count unique incidents today (occurrences of 'Down' status)
+        const totalIncidentsToday = await prisma.website_tick.count({
+            where: {
+                website: { user_id: req.userId! },
+                status: 'Down',
+                createdAt: { gte: today }
+            }
+        });
 
         const avgUptime = websites.reduce((sum: number, w: any) => {
             const ticks = w.ticks || [];
@@ -498,10 +523,47 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             total_websites: total,
             websites_up: up,
             websites_down: down,
-            websites_unknown: unknown,
             avg_uptime_percentage: Math.round(avgUptime * 100) / 100,
-            has_incidents: down > 0
+            total_incidents_today: totalIncidentsToday
         });
+    } catch (error) {
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+export const getGlobalPerformance = async (req: Request, res: Response) => {
+    try {
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        
+        // Get ticks for last 24h for all user websites
+        const ticks = await prisma.website_tick.findMany({
+            where: {
+                website: { user_id: req.userId! },
+                createdAt: { gte: oneDayAgo }
+            },
+            orderBy: { createdAt: 'asc' },
+            select: {
+                total_response_time_ms: true,
+                createdAt: true
+            }
+        });
+
+        // Group by hour
+        const hourlyStats: Record<string, { total: number, count: number }> = {};
+        
+        ticks.forEach(tick => {
+            const hour = new Date(tick.createdAt).toISOString().slice(0, 13) + ':00:00.000Z';
+            if (!hourlyStats[hour]) hourlyStats[hour] = { total: 0, count: 0 };
+            hourlyStats[hour].total += tick.total_response_time_ms || 0;
+            hourlyStats[hour].count += 1;
+        });
+
+        const performanceData = Object.entries(hourlyStats).map(([hour, stats]) => ({
+            timestamp: hour,
+            avg_response_ms: Math.round(stats.total / stats.count)
+        }));
+
+        res.json(performanceData);
     } catch (error) {
         res.status(500).json({ message: "Internal server error" });
     }

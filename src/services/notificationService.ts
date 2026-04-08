@@ -583,6 +583,27 @@ export const notificationService = {
 
     return this.sendEmail(email, "Upguard Security Alert", html);
   },
+
+  async sendWebsiteAddedEmail(email: string, url: string) {
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+        <div style="background:#00f09a;padding:20px;border-radius:8px 8px 0 0;text-align:center;">
+          <h1 style="color:#050505;margin:0;">✅ Website Added</h1>
+        </div>
+        <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;">
+          <p><strong>URL:</strong> ${url}</p>
+          <p>We are now monitoring <strong>${url}</strong>!</p>
+          <p>First check result will be available in 2 minutes.</p>
+          <div style="background:#f0fdf4;border-left:4px solid #00f09a;padding:16px;margin:20px 0;">
+            <p style="margin:0;">Sit back and relax while we watch over your infrastructure.</p>
+          </div>
+          <p style="color:#6b7280;font-size:14px;">— UpGuard Monitoring Team</p>
+        </div>
+      </div>
+    `;
+
+    return this.sendEmail(email, `✅ Now monitoring ${url}!`, html);
+  },
 };
 
 function formatDuration(ms: number): string {

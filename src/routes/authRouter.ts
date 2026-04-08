@@ -1,6 +1,6 @@
 import express from 'express';
 import passport from '../config/passport';
-import { signin, signup, me } from '../controllers/authController';
+import { signin, signup, me, updateProfile, changePassword, deleteAccount } from '../controllers/authController';
 import { googleCallback } from '../controllers/oauthController';
 import { authMiddleware } from '../middlewares/authmiddleware';
 
@@ -9,6 +9,9 @@ export const authRouter = express.Router();
 authRouter.post('/signup', signup);
 authRouter.post('/signin', signin);
 authRouter.get('/me', authMiddleware, me);
+authRouter.put('/update-profile', authMiddleware, updateProfile);
+authRouter.put('/change-password', authMiddleware, changePassword);
+authRouter.delete('/delete-account', authMiddleware, deleteAccount);
 
 authRouter.get('/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })

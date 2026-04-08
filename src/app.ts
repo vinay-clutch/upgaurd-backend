@@ -2,6 +2,7 @@ import express, { Response, Request, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import session from 'express-session';
 import cors from 'cors';
+import compression from 'compression';
 import passport from './config/passport';
 import { authRouter } from './routes/authRouter';
 import { websiteRouter } from './routes/websiteRouter';
@@ -13,6 +14,7 @@ import { RedisStore } from 'connect-redis';
 import { createRedisClient } from './redis';
 
 const app = express();
+app.use(compression());
 app.set('trust proxy', 1);
 
 app.get("/", (req, res) => {

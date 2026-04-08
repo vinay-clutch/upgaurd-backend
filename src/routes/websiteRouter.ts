@@ -17,7 +17,9 @@ import {
   getUptimeBadge,
   downloadPdfReport,
   exportCsv,
-  getPublicStatus
+  getPublicStatus,
+  getDashboardStats,
+  getGlobalPerformance
 } from '../controllers/websiteController';
 
 export const websiteRouter = express.Router();
@@ -28,6 +30,9 @@ websiteRouter.get('/public/:id', getPublicStatus);
 
 // All routes below require auth
 websiteRouter.use(authMiddleware);
+
+websiteRouter.get('/stats/summary', getDashboardStats);
+websiteRouter.get('/stats/performance', getGlobalPerformance);
 
 websiteRouter.post('/', createWebsite);
 websiteRouter.get('/', getWebsites);
