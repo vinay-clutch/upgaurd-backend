@@ -8,36 +8,42 @@ datasource db {
 }
 
 model user {
-  id          String      @id   @default(uuid())
-  username    String?     @unique  
-  password    String?                
-  email       String?       @unique 
-  
-  // New OAuth fields
-  google_id   String?     @unique
-  name        String?
-  picture     String?
-  auth_provider String?    
+  id              String    @id @default(uuid())
+  username        String?   @unique
+  password        String?
+  email           String?   @unique
+  auth_provider   String?
+  google_id       String?   @unique
+  name            String?
+  picture         String?
   discord_webhook String?
   slack_webhook   String?
-  
-  websites    website[]
+  websites        website[]
 }
 
 model website {
-  id         String         @id @default(uuid())
-  url        String
-  user_id    String
-  time_added DateTime
-  isPaused       Boolean        @default(false)
-  tags           String[]       @default([])
-  check_interval Int            @default(1)
-  maintenance_start  DateTime?
-  maintenance_end    DateTime?
-  maintenance_note   String?
-  user           user           @relation(fields: [user_id], references: [id])
-  ticks      website_tick[]
-  analytics  analytics_site?
+  id                String          @id @default(uuid())
+  url               String
+  user_id           String
+  time_added        DateTime
+  isPaused          Boolean         @default(false)
+  tags              String[]        @default([])
+  check_interval    Int             @default(1)
+  maintenance_end   DateTime?
+  maintenance_note  String?
+  maintenance_start DateTime?
+  lastAlertSentAt   DateTime?
+  analytics         analytics_site?
+  user              user            @relation(fields: [user_id], references: [id])
+  ticks             website_tick[]
+  anomalyBaselines  AnomalyBaseline[]
+  anomalyEvents     AnomalyEvent[]
+  capacityForecasts CapacityForecast[]
+  loadTests         LoadTest[]
+  slaTargets        SLATarget[]
+  slaCompliances    SLACompliance[]
+  dependencies      ServiceDependency[] @relation("WebsiteDependencies")
+  dependedOnBy      ServiceDependency[] @relation("DependencyTree")
 }
 
 model region {
@@ -57,54 +63,55 @@ model website_tick {
   data_transfer_time_ms  Int?
   tls_handshake_time_ms  Int?
   total_response_time_ms Int?
+  status_code            Int?
   region                 region         @relation(fields: [region_id], references: [id])
   website                website        @relation(fields: [website_id], references: [id])
 }
 
 model analytics_site {
-  id          String   @id @default(uuid())
-  website_id  String   @unique
-  website     website  @relation(fields: [website_id], references: [id])
-  created_at  DateTime @default(now())
-  page_views  page_view[]
-  sessions    analytics_session[]
-  js_errors   js_error[]
+  id         String              @id @default(uuid())
+  website_id String              @unique
+  created_at DateTime            @default(now())
+  sessions   analytics_session[]
+  website    website             @relation(fields: [website_id], references: [id])
+  js_errors  js_error[]
+  page_views page_view[]
 }
 
 model page_view {
-  id         String   @id @default(uuid())
+  id         String         @id @default(uuid())
   site_id    String
-  site       analytics_site @relation(fields: [site_id], references: [id])
   page_url   String
   referrer   String?
   country    String?
   device     String?
   browser    String?
   session_id String?
-  timestamp  DateTime @default(now())
+  timestamp  DateTime       @default(now())
+  site       analytics_site @relation(fields: [site_id], references: [id])
 }
 
 model analytics_session {
-  id               String   @id @default(uuid())
+  id               String         @id @default(uuid())
   site_id          String
-  site             analytics_site @relation(fields: [site_id], references: [id])
   session_id       String
-  started_at       DateTime @default(now())
+  started_at       DateTime       @default(now())
   ended_at         DateTime?
   duration_seconds Int?
-  page_count       Int      @default(1)
+  page_count       Int            @default(1)
+  site             analytics_site @relation(fields: [site_id], references: [id])
 }
 
 model js_error {
-  id        String   @id @default(uuid())
+  id        String         @id @default(uuid())
   site_id   String
-  site       analytics_site @relation(fields: [site_id], references: [id])
   message   String
   stack     String?
   page_url  String?
   browser   String?
-  timestamp DateTime @default(now())
-  resolved  Boolean  @default(false)
+  timestamp DateTime       @default(now())
+  resolved  Boolean        @default(false)
+  site      analytics_site @relation(fields: [site_id], references: [id])
 }
 
 enum website_status {
@@ -113,3 +120,111 @@ enum website_status {
   Unknown
 }
 
+model AnomalyBaseline {
+  id            String   @id @default(cuid())
+  websiteId     String
+  website       website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  metricType    String   // "response_time", "error_rate", "uptime"
+  mean          Float
+  stdDev        Float
+  windowStart   DateTime
+  windowEnd     DateTime
+  dataPoints    Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AnomalyEvent {
+  id            String   @id @default(cuid())
+  websiteId     String
+  website       website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  metricType    String
+  actualValue   Float
+  expectedValue Float
+  deviation     Float
+  anomalyScore  Float
+  severity      String   // "low", "medium", "high", "critical"
+  detectedAt    DateTime @default(now())
+}
+
+model IncidentCluster {
+  id            String   @id @default(cuid())
+  clusterKey    String   @unique
+  incidentIds   String[] // Array of incident IDs
+  rootCause     String?
+  errorPattern  String
+  affectedSites Int
+  firstSeen     DateTime
+  lastSeen      DateTime
+  status        String   @default("active")
+}
+
+model CapacityForecast {
+  id                String   @id @default(cuid())
+  websiteId         String
+  website           website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  metricType        String
+  currentValue      Float
+  predictedValue    Float
+  saturationPoint   Float?
+  daysToSaturation  Int?
+  confidence        Float
+  createdAt         DateTime @default(now())
+}
+
+model LoadTest {
+  id            String   @id @default(cuid())
+  websiteId     String
+  website       website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  concurrency   Int
+  duration      Int      // seconds
+  status        String   // "running", "completed", "failed"
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  results       LoadTestResult[]
+}
+
+model LoadTestResult {
+  id                String   @id @default(cuid())
+  loadTestId        String
+  loadTest          LoadTest @relation(fields: [loadTestId], references: [id], onDelete: Cascade)
+  timestamp         DateTime
+  requestsPerSecond Float
+  avgLatency        Float
+  p95Latency        Float
+  p99Latency        Float
+  errorRate         Float
+}
+
+model SLATarget {
+  id            String   @id @default(cuid())
+  websiteId     String
+  website       website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  targetUptime  Float    @default(99.9)  // percentage
+  targetLatency Int      @default(500)   // milliseconds
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model SLACompliance {
+  id                  String   @id @default(cuid())
+  websiteId           String
+  website             website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  periodStart         DateTime
+  periodEnd           DateTime
+  actualUptime        Float
+  actualLatency       Float
+  isCompliant         Boolean
+  downtimeBudgetUsed  Float    // percentage
+  createdAt           DateTime @default(now())
+}
+
+model ServiceDependency {
+  id              String   @id @default(cuid())
+  websiteId       String
+  website         website  @relation("WebsiteDependencies", fields: [websiteId], references: [id], onDelete: Cascade)
+  dependsOnId     String
+  dependsOn       website  @relation("DependencyTree", fields: [dependsOnId], references: [id])
+  dependencyType  String   // "api", "database", "cdn", "upstream"
+  createdAt       DateTime @default(now())
+}

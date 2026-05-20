@@ -51,6 +51,47 @@ export async function sendDiscordAlert(
   }
 }
 
+export async function sendEscalatedDiscordAlert(
+  webhookUrl: string,
+  websiteUrl: string,
+  durationMinutes: number
+) {
+  const embed = {
+    embeds: [{
+      title: '🚨 ESCALATED ALERT: Still Down',
+      description: `**${websiteUrl}** has been down for **${durationMinutes} minutes**.`,
+      color: 0x991b1b, // Dark red
+      fields: [
+        { 
+          name: '⚠️ Update', 
+          value: `🚨 UPDATE: ${websiteUrl} has been down for ${durationMinutes} minutes. Please investigate immediately.`, 
+          inline: false 
+        },
+        { 
+          name: '🕐 Duration Since First Failure', 
+          value: `${durationMinutes} minutes`, 
+          inline: true 
+        },
+        { 
+          name: '⚡ Urgency', 
+          value: 'HIGH', 
+          inline: true 
+        }
+      ],
+      footer: { 
+        text: 'UpGuard Escalation System' 
+      },
+      timestamp: new Date().toISOString()
+    }]
+  };
+
+  try {
+    await axios.post(webhookUrl, embed);
+  } catch (error: any) {
+    console.error('Discord escalation webhook error:', error.message);
+  }
+}
+
 export async function sendDiscordTestMessage(webhookUrl: string) {
   const embed = {
     embeds: [{

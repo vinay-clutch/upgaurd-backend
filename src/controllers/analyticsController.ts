@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/db';
+import { broadcastToSite } from '../socket';
+
+// Simple in-memory storage for active visitors (site_id -> Set of session_ids)
+const activeSessions = new Map<string, Set<string>>();
+
 
 // Called when user enables analytics for a website
 export const enableAnalytics = async (req: Request, res: Response) => {
@@ -72,7 +77,22 @@ export const trackPageView = async (req: Request, res: Response) => {
       }
     }
 
+
+    // Handle real-time active visitors
+    if (site_id && session_id) {
+      if (!activeSessions.has(site_id)) {
+        activeSessions.set(site_id, new Set());
+      }
+      activeSessions.get(site_id)?.add(session_id);
+      
+      broadcastToSite(site_id, 'visitor_joined', {
+        activeCount: activeSessions.get(site_id)?.size || 0,
+        session_id
+      });
+    }
+
     res.status(200).json({ ok: true });
+
   } catch (error) {
     res.status(500).json({ ok: false });
   }
@@ -88,10 +108,16 @@ export const trackError = async (req: Request, res: Response) => {
                   : userAgent.includes('Safari') ? 'Safari'
                   : 'Other';
 
-    await prisma.js_error.create({
+    const newError = await prisma.js_error.create({
       data: { site_id, message, stack, page_url, browser }
     });
+
+    broadcastToSite(site_id, 'client_error', {
+      error: newError
+    });
+
     res.status(200).json({ ok: true });
+
   } catch (error) {
     res.status(500).json({ ok: false });
   }
@@ -113,7 +139,19 @@ export const trackSessionEnd = async (req: Request, res: Response) => {
         }
       });
     }
+
+
+    // Update real-time active visitors
+    if (site_id && session_id && activeSessions.has(site_id)) {
+      activeSessions.get(site_id)?.delete(session_id);
+      broadcastToSite(site_id, 'visitor_left', {
+        activeCount: activeSessions.get(site_id)?.size || 0,
+        session_id
+      });
+    }
+
     res.status(200).json({ ok: true });
+
   } catch (error) {
     res.status(500).json({ ok: false });
   }
@@ -234,7 +272,8 @@ export const getAnalytics = async (req: Request, res: Response) => {
       device_breakdown: deviceCounts,
       browser_breakdown: browserCounts,
       recent_errors: errors,
-      total_errors: errors.length
+      total_errors: errors.length,
+      active_visitors: activeSessions.get(site.id)?.size || 0
     });
   } catch (error) {
     res.status(500).json({ message: "internal server error" });
@@ -276,3 +315,23 @@ export const getErrors = async (req: Request, res: Response) => {
     res.status(500).json({ message: "internal server error" });
   }
 };
+
+// Get live visitor count only
+export const getLiveCount = async (req: Request, res: Response) => {
+  try {
+    const site = await prisma.analytics_site.findUnique({
+      where: { website_id: req.params.websiteId }
+    });
+
+    if (!site) {
+      return res.status(404).json({ message: "Not found" });
+    }
+
+    res.json({
+      active_visitors: activeSessions.get(site.id)?.size || 0
+    });
+  } catch (error) {
+    res.status(500).json({ message: "internal server error" });
+  }
+};
+

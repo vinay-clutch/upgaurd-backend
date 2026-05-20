@@ -43,11 +43,14 @@
   },
   "scripts": {
     "dev": "nodemon --exec \"node --max-old-space-size=512 -r ts-node/register/transpile-only src/index.ts\"",
-    "build": "node --max-old-space-size=1024 node_modules/.bin/tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "worker": "node --max-old-space-size=512 -r ts-node/register/transpile-only src/worker/index.ts",
+    "analytics": "node --max-old-space-size=256 -r ts-node/register/transpile-only src/worker/analyticsWorker.ts",
     "pusher": "node --max-old-space-size=256 -r ts-node/register/transpile-only src/pusher/index.ts",
     "seed": "ts-node src/seed.ts",
+    "test-alerts": "ts-node src/scripts/testAlerts.ts",
+    "cli": "node cli.js",
     "studio": "npx prisma studio",
     "postinstall": "prisma generate"
   }

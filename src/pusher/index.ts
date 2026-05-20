@@ -1,7 +1,11 @@
+import dns from 'node:dns';
+dns.setDefaultResultOrder('ipv4first');
+
+import dotenv from "dotenv";
+dotenv.config({ override: true });
+
 import { xAddBulk } from "../redis";
 import prisma from "../lib/db";
-import dotenv from "dotenv";
-dotenv.config();
 
 const CHECK_INTERVAL_MS = 60_000;
 

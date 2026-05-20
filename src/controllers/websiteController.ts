@@ -130,10 +130,44 @@ export const getWebsiteStatus = async (req: Request, res: Response) => {
             }
         }
 
+        // 🔮 Predictive Engine: Analyze last 5 latency checks for trend forecasting
+        const last5Ticks = recentTicks.slice(0, 5).reverse(); // Oldest to newest
+        let riskLevel = 'Stable';
+        let trendDescription = 'Latency is optimized';
+        
+        if (last5Ticks.length >= 5) {
+            const latencies = last5Ticks.map(t => t.total_response_time_ms || 0);
+            const isIncreasing = latencies.every((val, i) => i === 0 || val > (latencies[i - 1] || 0));
+            
+            if (isIncreasing) {
+                riskLevel = 'High';
+                trendDescription = 'Persistent upward latency trend detected';
+            } else if ((latencies[latencies.length - 1] || 0) > (latencies[0] || 0)) {
+                riskLevel = 'Medium';
+                trendDescription = 'Moderate performance degradation';
+            }
+        }
+
+        // 🧠 AI Root Cause Diagnostic (The Hook)
+        let rootCause = null;
         let currentDiagnosis = null;
-        if (latestStatus === 'Down' && recentTicks.length > 0) {
-            const lastTick = recentTicks[0];
-            currentDiagnosis = diagnoseError(undefined, undefined, lastTick?.total_response_time_ms ?? undefined);
+
+        if (latestStatus === 'Down' || riskLevel === 'High') {
+            const currentLatency = recentTicks[0]?.total_response_time_ms || 0;
+            // Get actual status code from last tick if available
+            const actualStatusCode = (recentTicks[0] as any)?.status_code || (latestStatus === 'Down' ? 503 : 200);
+
+            if (currentLatency > 1000 && actualStatusCode >= 500) {
+                rootCause = "Nginx/Apache Overload - Server resources exhausted";
+            } else if (currentLatency < 200 && actualStatusCode === 404) {
+                rootCause = "Broken Deployment - Application entry point missing";
+            } else if (actualStatusCode === 503) {
+                rootCause = "Service Unavailable - Upstream dependency failure";
+            } else {
+                rootCause = "Network Gateway Timeout - Potential firewall block";
+            }
+
+            currentDiagnosis = diagnoseError(actualStatusCode, undefined, currentLatency);
         }
 
         res.json({
@@ -146,6 +180,12 @@ export const getWebsiteStatus = async (req: Request, res: Response) => {
             maintenance_note: website.maintenance_note,
             latest_status: latestStatus,
             uptime_percentage: uptimePercentage,
+            forecast: {
+                risk_level: riskLevel,
+                trend: trendDescription,
+                message: riskLevel === 'High' ? '⚠️ High risk of imminent downtime' : '✅ System health is optimal'
+            },
+            ai_root_cause: rootCause,
             continuous_uptime_start: continuousUptimeStart,
             uptime_duration: uptimeDuration,
             current_diagnosis: currentDiagnosis,
@@ -908,6 +948,28 @@ export const exportCsv = async (req: Request, res: Response) => {
   }
 };
 
+export const getSmartRemediation = async (req: Request, res: Response) => {
+  try {
+    const { error_code } = req.query;
+    if (!error_code) {
+      res.status(400).json({ message: "error_code is required" });
+      return;
+    }
+
+    const { getSmartRemediation: getFix } = await import('../utils/remediation');
+    const fix = getFix(error_code as string);
+
+    if (!fix) {
+      res.status(404).json({ message: "No remediation found for this code" });
+      return;
+    }
+
+    res.json(fix);
+  } catch (error) {
+    res.status(500).json({ message: "Remediation engine error" });
+  }
+};
+
 export const websiteController = {
   async sendContactEmail(req: Request, res: Response) {
     try {
@@ -928,7 +990,7 @@ export const websiteController = {
       }
 
       const response = await resend.emails.send({
-        from: "noreply@upgaurd.com",
+        from: "UpGuard <onboarding@resend.dev>",
         to: email,
         subject: subject,
         html: `<h2>${subject}</h2><p>${message}</p><hr><p>From: ${email}</p>`,
@@ -971,5 +1033,58 @@ export const websiteController = {
       });
     }
   },
+};
+
+export const getAIMLStats = async (req: Request, res: Response) => {
+  try {
+    const userWebsites = await prisma.website.findMany({
+      where: { user_id: req.userId! },
+      select: { id: true, url: true }
+    });
+
+    const websiteIds = userWebsites.map(w => w.id);
+
+    const anomalyEvents = await prisma.anomalyEvent.findMany({
+      where: { websiteId: { in: websiteIds } },
+      orderBy: { detectedAt: 'desc' },
+      take: 50,
+      include: {
+        website: {
+          select: { url: true }
+        }
+      }
+    });
+
+    const capacityForecasts = await prisma.capacityForecast.findMany({
+      where: { websiteId: { in: websiteIds } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        website: {
+          select: { url: true }
+        }
+      }
+    });
+
+    const incidentClusters = await prisma.incidentCluster.findMany({
+      orderBy: { firstSeen: 'desc' },
+      take: 20
+    });
+
+    res.status(200).json({
+      success: true,
+      anomalyEvents,
+      capacityForecasts,
+      incidentClusters,
+      websites: userWebsites
+    });
+  } catch (error) {
+    console.error("Failed to fetch AI/ML stats:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch AI/ML stats",
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
 };
 

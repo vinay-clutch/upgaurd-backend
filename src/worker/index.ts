@@ -1,15 +1,22 @@
+import dotenv from "dotenv";
+dotenv.config(); // Call this immediately
+
 import https from "https";
 import http from "http";
+import axios from "axios";
 import { URL } from "url";
 import { createRedisClient, xAckBulk, xReadGroup } from "../redis";
 import prisma from "../lib/db";
 import { NotificationService } from "../services/notificationService";
 import { recordCheck } from "../services/downtimeTracker";
-import dotenv from "dotenv";
+import path from "path";
 import { Resend } from 'resend';
 import { publishSocketEvent } from '../services/socketPublisher';
+import { AIMLService } from "../services/aimlService";
 
-dotenv.config();
+// Load env from both possible locations
+dotenv.config({ path: path.join(process.cwd(), ".env") });
+dotenv.config({ path: path.join(process.cwd(), "../.env") });
 
 setInterval(async () => {
   try {
@@ -23,6 +30,7 @@ setInterval(async () => {
 }, 60 * 1000);
 
 const resend = new Resend(process.env.Mail_API);
+const testEmail = process.env.TEST_EMAIL || "vinayvinay0256@gmail.com";
 const notificationCache = new Map<string, number>();
 
 const REGION_ID = process.env.REGION_ID!;
@@ -104,10 +112,11 @@ async function fetchWebsite(url: string, websiteId: string) {
                 tls_handshake_time_ms,
                 data_transfer_time_ms,
                 total_response_time_ms,
-                status,                 
-                region_id: REGION_ID,   
-                website_id: websiteId,  
-              },
+                status,
+                status_code: res.statusCode || 0,
+                region_id: REGION_ID,
+                website_id: websiteId,
+              } as any,
             });
 
             try {
@@ -121,6 +130,16 @@ async function fetchWebsite(url: string, websiteId: string) {
             } catch(e) {
               // ignore
             }
+            
+            if (status === "Down" || res.statusCode! >= 400) {
+              // --- AIML Decision Tree Root Cause Analysis ---
+              const rca = AIMLService.analyzeRootCause(res.statusCode || 0, null, total_response_time_ms);
+              console.log(`[AIML Diagnosis] ${url} | Category: ${rca.category} | Severity: ${rca.severity}`);
+              console.log(`[AIML Suggested Fix] ${rca.cause} -> Steps: ${rca.steps.join(", ")}`);
+              if (rca.fixSnippet) console.log(`[AIML Fix Snippet]: ${rca.fixSnippet}`);
+              // ---------------------------------------------
+            }
+
             console.log(`[${new Date().toISOString()}] [${REGION_ID}] ${url} → ${status} (${total_response_time_ms}ms)`);
             const consecutiveDownCount = recordCheck(websiteId, status);
 
@@ -138,19 +157,56 @@ async function fetchWebsite(url: string, websiteId: string) {
               console.log(`[MAINTENANCE] ${url} - skipping alerts`);
             } else {
               if (status === 'Down' && consecutiveDownCount >= 1) {
-                // Now notify immediately on the first down check
-                console.log(`[ALERT] ${url} is DOWN - sending notifications`);
+                // 🔥 EMERGENCY ALERT BYPASS TRIGGERED
+                console.log('🔥 EMERGENCY ALERT BYPASS TRIGGERED FOR:', url);
+                
+                // 1. Send Email
+                try {
+                  await resend.emails.send({
+                    from: 'UpGuard <onboarding@resend.dev>',
+                    to: testEmail,
+                    subject: `🚨 URGENT: ${url} is DOWN`,
+                    html: `<p>UpGuard detected that <b>${url}</b> is offline.</p>`
+                  });
+                  console.log('✅✅ EMERGENCY EMAIL SENT SUCCESSFULLY');
+                } catch (err) {
+                  console.error('❌ EMERGENCY EMAIL FAILED:', err);
+                }
+
+                // 2. Send Discord
+                try {
+                  const webhookUrl = process.env.DISCORD_WEBHOOK || process.env.TEST_DISCORD_WEBHOOK;
+                  if (webhookUrl) {
+                    await axios.post(webhookUrl, {
+                      content: `🚨 **CRITICAL ALERT:** ${url} is DOWN!`
+                    });
+                    console.log('✅✅ EMERGENCY DISCORD SENT SUCCESSFULLY');
+                  } else {
+                    console.error('❌ DISCORD WEBHOOK URL IS MISSING IN .ENV');
+                  }
+                } catch (err) {
+                  console.error('❌ EMERGENCY DISCORD FAILED:', err);
+                }
+
+                // Still call the original for cache tracking
                 await NotificationService.checkAndNotifyStatusChange(
                   websiteId,
                   status,
-                  REGION_ID
+                  REGION_ID,
+                  res.statusCode || 503,
+                  undefined, 
+                  total_response_time_ms
                 );
               } else if (status === 'Up') {
                 // Always notify when site comes back UP
+                console.log("✅✅ WORKER IS NOW CALLING NOTIFICATION SERVICE FOR RECOVERY:", url);
                 await NotificationService.checkAndNotifyStatusChange(
                   websiteId,
                   status,
-                  REGION_ID
+                  REGION_ID,
+                  200,
+                  undefined,
+                  total_response_time_ms
                 );
               } else if (status === 'Down' && consecutiveDownCount === 1) {
                 console.log(`[WARNING] ${url} is DOWN (check ${consecutiveDownCount}/2 - waiting to confirm before alerting)`);
@@ -249,11 +305,50 @@ async function fetchWebsite(url: string, websiteId: string) {
         } catch(e) {
           // ignore
         }
+        
+        // --- AIML Decision Tree Root Cause Analysis ---
+        const rca = AIMLService.analyzeRootCause(0, err.message, total_response_time_ms);
+        console.log(`[AIML Diagnosis] ${url} | Category: ${rca.category} | Severity: ${rca.severity}`);
+        console.log(`[AIML Suggested Fix] ${rca.cause} -> Steps: ${rca.steps.join(", ")}`);
+        if (rca.fixSnippet) console.log(`[AIML Fix Snippet]: ${rca.fixSnippet}`);
+        // ---------------------------------------------
+        
         console.log(`[${new Date().toISOString()}] ${url} → DOWN (error: ${err.message})`);
         const consecutiveDownCount = recordCheck(websiteId, "Down");
 
         if (consecutiveDownCount >= 2) {
           console.log(`[ALERT] ${url} has been DOWN for ${consecutiveDownCount} consecutive checks - sending email`);
+          console.log('🔥 EMERGENCY ALERT BYPASS TRIGGERED FOR:', url);
+
+          // 1. Send Email
+          try {
+            await resend.emails.send({
+              from: 'UpGuard <onboarding@resend.dev>',
+              to: 'vinayvinay0256@gmail.com',
+              subject: `🚨 URGENT: ${url} is DOWN (Network Error)`,
+              html: `<p>UpGuard detected that <b>${url}</b> is completely unreachable.</p>`
+            });
+            console.log('✅✅ EMERGENCY EMAIL SENT SUCCESSFULLY');
+          } catch (err) {
+            console.error('❌ EMERGENCY EMAIL FAILED:', err);
+          }
+
+          // 2. Send Discord
+          try {
+            const webhookUrl = process.env.DISCORD_WEBHOOK || process.env.TEST_DISCORD_WEBHOOK;
+            if (webhookUrl) {
+              await axios.post(webhookUrl, {
+                content: `🚨 **CRITICAL ALERT:** ${url} is UNREACHABLE!`
+              });
+              console.log('✅✅ EMERGENCY DISCORD SENT SUCCESSFULLY');
+            } else {
+              console.error('❌ DISCORD WEBHOOK URL IS MISSING IN .ENV');
+            }
+          } catch (err) {
+            console.error('❌ EMERGENCY DISCORD FAILED:', err);
+          }
+
+          // Original fallback
           await NotificationService.checkAndNotifyStatusChange(
             websiteId,
             "Down",

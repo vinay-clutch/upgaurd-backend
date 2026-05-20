@@ -19,7 +19,9 @@ import {
   exportCsv,
   getPublicStatus,
   getDashboardStats,
-  getGlobalPerformance
+  getGlobalPerformance,
+  getSmartRemediation,
+  getAIMLStats
 } from '../controllers/websiteController';
 
 export const websiteRouter = express.Router();
@@ -49,5 +51,7 @@ websiteRouter.put('/:id/tags', updateWebsiteTags);
 websiteRouter.get('/:id/security', getSecurityHeaders);
 websiteRouter.get('/:id/report/pdf', downloadPdfReport);
 websiteRouter.get('/:id/export/csv', exportCsv);
+websiteRouter.get('/remediation/suggest', getSmartRemediation);
+websiteRouter.get('/aiml/stats', getAIMLStats);
 
 export default websiteRouter;

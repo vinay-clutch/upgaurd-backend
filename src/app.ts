@@ -7,8 +7,9 @@ import passport from './config/passport';
 import { authRouter } from './routes/authRouter';
 import { websiteRouter } from './routes/websiteRouter';
 import { analyticsRouter } from './routes/analyticsRouter';
+import publicRouter from './routes/publicRouter';
 import { getTrackerScript } from './controllers/trackerController';
-import { SESSION_SECRET } from './lib/config';
+import { SESSION_SECRET, CLIENT_URL } from './lib/config';
 import { scheduleReports } from './services/reportScheduler';
 import { RedisStore } from 'connect-redis';
 import { createRedisClient } from './redis';
@@ -16,6 +17,28 @@ import { createRedisClient } from './redis';
 const app = express();
 app.use(compression());
 app.set('trust proxy', 1);
+
+const allowedOrigins = [
+  CLIENT_URL,
+  "https://upgaurd-frontend.vercel.app",
+  "http://localhost:3000",
+  "http://localhost:5173",
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin: any, callback: any) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log(`[CORS Request] Origin: ${origin}`);
+      callback(null, true);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  optionsSuccessStatus: 200
+}));
 
 app.get("/", (req, res) => {
   res.status(200).send("Backend is running");
@@ -32,26 +55,6 @@ const redisStore = new RedisStore({
   client: redisClient,
   prefix: "upguard_sess:",
 });
-
-const allowedOrigins = [
-  "https://upgaurd-frontend.vercel.app",
-  "http://localhost:3000",
-  "http://localhost:5173",
-];
-
-app.use(cors({
-  origin: function (origin: any, callback: any) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, true);
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 200
-}));
 
 
 
@@ -91,6 +94,7 @@ app.use(passport.session());
 app.use('/api/auth', authRouter);
 app.use('/api/websites', websiteRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/public', publicRouter);
 app.get('/tracker.js', getTrackerScript);
 
 setImmediate(() => {

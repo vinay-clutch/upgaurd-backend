@@ -1,9 +1,13 @@
 import { Resend } from "resend";
 import prisma from "../lib/db";
-// import { website_status } from "@prisma/client";
-type website_status = "Up" | "Down" | "Unknown";
 import dotenv from "dotenv";
-dotenv.config();
+import path from "path";
+
+// Load env from both possible locations
+dotenv.config({ path: path.join(process.cwd(), ".env") });
+dotenv.config({ path: path.join(process.cwd(), "../.env") });
+
+type website_status = "Up" | "Down" | "Unknown";
 
 // Use env variable instead of hardcoded key
 const resend = new Resend(process.env.Mail_API);
@@ -18,11 +22,14 @@ export interface DiagnosisResult {
 
 export function diagnoseError(
   statusCode?: number,
-  errorMessage?: string,
+  errorMessage?: any,
   totalResponseMs?: number
 ): DiagnosisResult {
-  if (!statusCode && errorMessage) {
-    if (errorMessage.includes("ECONNREFUSED")) {
+  // Convert errorMessage to string safely for .includes checks
+  const errorStr = errorMessage ? String(errorMessage) : "";
+
+  if (!statusCode && errorStr) {
+    if (errorStr.includes("ECONNREFUSED")) {
       return {
         errorType: "Connection Refused",
         likelyCause: "The server is not running or the port is blocked.",
@@ -34,7 +41,7 @@ export function diagnoseError(
         severity: "critical",
       };
     }
-    if (errorMessage.includes("ENOTFOUND") || errorMessage.includes("DNS")) {
+    if (errorStr.includes("ENOTFOUND") || errorStr.includes("DNS")) {
       return {
         errorType: "DNS Resolution Failed",
         likelyCause: "Domain name could not be resolved to an IP address.",
@@ -46,7 +53,7 @@ export function diagnoseError(
         severity: "critical",
       };
     }
-    if (errorMessage.includes("ETIMEDOUT") || errorMessage.includes("timeout")) {
+    if (errorStr.includes("ETIMEDOUT") || errorStr.includes("timeout")) {
       return {
         errorType: "Connection Timeout",
         likelyCause: "Server took too long to respond.",
@@ -58,7 +65,7 @@ export function diagnoseError(
         severity: "high",
       };
     }
-    if (errorMessage.includes("ECONNRESET")) {
+    if (errorStr.includes("ECONNRESET")) {
       return {
         errorType: "Connection Reset",
         likelyCause: "Server forcibly closed the connection.",
@@ -71,9 +78,9 @@ export function diagnoseError(
       };
     }
     if (
-      errorMessage.includes("certificate") ||
-      errorMessage.includes("SSL") ||
-      errorMessage.includes("TLS")
+      errorStr.includes("certificate") ||
+      errorStr.includes("SSL") ||
+      errorStr.includes("TLS")
     ) {
       return {
         errorType: "SSL/TLS Certificate Error",
@@ -240,9 +247,48 @@ export class NotificationService {
           errorMessage,
           totalResponseMs
         );
+      } else if (newStatus === "Down") {
+        // Site remains DOWN, check if we need to escalate
+        await this.checkEscalation(websiteId);
       }
     } catch (error) {
       console.error("Error checking status change:", error);
+    }
+  }
+
+  private static async checkEscalation(websiteId: string) {
+    try {
+      const website = await prisma.website.findUnique({
+        where: { id: websiteId },
+        include: { user: true }
+      });
+
+      if (!website || !(website as any).lastAlertSentAt) return;
+
+      const lastAlert = new Date((website as any).lastAlertSentAt).getTime();
+      const now = Date.now();
+      const minutesSinceLastAlert = (now - lastAlert) / (1000 * 60);
+
+      if (minutesSinceLastAlert >= 2) {
+        // Find when it first went down in this sequence
+        const lastUpTick = await prisma.website_tick.findFirst({
+          where: { website_id: websiteId, status: "Up" },
+          orderBy: { createdAt: "desc" }
+        });
+
+        const downSince = lastUpTick ? lastUpTick.createdAt : website.time_added;
+        const totalMinutesDown = Math.round((now - new Date(downSince).getTime()) / (1000 * 60));
+
+        await this.sendEscalatedNotification(websiteId, totalMinutesDown);
+        
+        // Update lastAlertSentAt to prevent Spamming every check
+        await prisma.website.update({
+          where: { id: websiteId },
+          data: { lastAlertSentAt: new Date() } as any
+        });
+      }
+    } catch (error) {
+      console.error("Escalation check failed:", error);
     }
   }
 
@@ -290,6 +336,18 @@ export class NotificationService {
         ? diagnoseError(statusCode, errorMessage, totalResponseMs)
         : null;
 
+    if (newStatus === "Down") {
+      await prisma.website.update({
+        where: { id: websiteId },
+        data: { lastAlertSentAt: new Date() } as any
+      });
+    } else if (newStatus === "Up") {
+      await prisma.website.update({
+        where: { id: websiteId },
+        data: { lastAlertSentAt: null } as any
+      });
+    }
+
     await this.sendEmail(
       website.user.email,
       website.url,
@@ -298,32 +356,40 @@ export class NotificationService {
       diagnosis
     );
 
-    // Send Discord alert if webhook is configured
-    const userWithDiscord = await prisma.user.findUnique({
-        where: { id: website.user_id }
-    });
+    // Send Discord alert if webhook is configured OR fallback provided
+    const discordWebhook = website.user.discord_webhook || process.env.DISCORD_WEBHOOK || process.env.TEST_DISCORD_WEBHOOK;
 
-    if (userWithDiscord?.discord_webhook) {
-        const { sendDiscordAlert } = await import('./discordService');
-        await sendDiscordAlert(
-            userWithDiscord.discord_webhook,
-            website.url,
-            newStatus,
-            undefined,
-            diagnosis?.errorType
-        );
+    if (discordWebhook) {
+        console.log(`🤖 Attempting to send Discord alert to Webhook: ${discordWebhook.substring(0, 30)}...`);
+        try {
+            const { sendDiscordAlert } = await import('./discordService');
+            await sendDiscordAlert(
+                discordWebhook,
+                website.url,
+                newStatus,
+                undefined,
+                diagnosis?.errorType
+            );
+            console.log("✅ Discord alert sent successfully");
+        } catch (err: any) {
+            console.error("❌ Failed to send Discord alert:", err.message);
+        }
     }
 
     // Send Slack alert if webhook is configured
-    if (userWithDiscord?.slack_webhook) {
-        const { sendSlackAlert } = await import('./slackService');
-        await sendSlackAlert(
-            userWithDiscord.slack_webhook,
-            website.url,
-            newStatus,
-            undefined,
-            diagnosis?.errorType
-        );
+    if (website.user.slack_webhook) {
+        try {
+            const { sendSlackAlert } = await import('./slackService');
+            await sendSlackAlert(
+                website.user.slack_webhook,
+                website.url,
+                newStatus,
+                undefined,
+                diagnosis?.errorType
+            );
+        } catch (err: any) {
+            console.error("❌ Failed to send Slack alert:", err.message);
+        }
     }
 
 
@@ -401,15 +467,28 @@ export class NotificationService {
         </div>
       </div>`;
 
-    const { error } = await resend.emails.send({
-      from: "UpGuard <onboarding@resend.dev>",
-      to: [email],
-      subject,
-      html,
-    });
+    const recipientEmail = email || process.env.ALERT_EMAIL || process.env.TEST_EMAIL;
+    if (!recipientEmail) {
+        console.warn("⚠️ No recipient email found for alert");
+        return;
+    }
 
-    if (error) {
-      console.error("Failed to send email:", error);
+    console.log(`📨 Attempting to send Email to: ${recipientEmail}`);
+    try {
+        const { data, error } = await resend.emails.send({
+            from: "UpGuard <onboarding@resend.dev>",
+            to: [recipientEmail],
+            subject,
+            html,
+        });
+
+        if (error) {
+            console.error("❌ Resend API Error:", error);
+        } else {
+            console.log("✅ Email alert sent successfully. ID:", data?.id);
+        }
+    } catch (err: any) {
+        console.error("❌ Resend Connection Error:", err.message);
     }
   }
 
@@ -538,6 +617,68 @@ export class NotificationService {
       }
     }
   }
+
+  static async sendEscalatedNotification(websiteId: string, durationMinutes: number) {
+    const website = await prisma.website.findUnique({
+      where: { id: websiteId },
+      include: { user: true }
+    });
+
+    if (!website?.user.email) return;
+
+    const subject = `🚨 URGENT: ${website.url} is still DOWN`;
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#1a1a2e;color:#fff;padding:30px;border-radius:12px;border:1px solid #7f1d1d">
+        <div style="background:#7f1d1d;padding:20px;border-radius:8px;text-align:center;margin-bottom:20px">
+          <h1 style="color:white;margin:0;">🚨 Escalated Alert</h1>
+        </div>
+        <div style="background:#0f172a;padding:24px;border-radius:8px;border:1px solid #1e293b">
+          <p><strong>Website:</strong> ${website.url}</p>
+          <p><strong>Status:</strong> <span style="color:#ef4444; font-weight:bold;">STILL DOWN</span></p>
+          <p><strong>Duration:</strong> <span style="color:#f87171">${durationMinutes} minutes</span></p>
+          <div style="background:#450a0a; padding:20px; border-radius:8px; color:#fecaca; font-weight:bold; margin:20px 0; border-left:4px solid #ef4444">
+            🚨 UPDATE: ${website.url} has been down for ${durationMinutes} minutes. Please investigate immediately.
+          </div>
+          <p style="color:#94a3b8;font-size:14px;">— UpGuard Escalation System</p>
+        </div>
+      </div>
+    `;
+
+    // Send Email
+    const recipientEmail = website.user.email || process.env.ALERT_EMAIL || process.env.TEST_EMAIL;
+    if (recipientEmail) {
+      console.log(`📨 Attempting to send Escalated Email to: ${recipientEmail}`);
+      try {
+        const { data, error } = await resend.emails.send({
+          from: "UpGuard <onboarding@resend.dev>",
+          to: [recipientEmail],
+          subject,
+          html,
+        });
+        if (error) console.error("❌ Escalated Email Resend Error:", error);
+        else console.log("✅ Escalated Email sent successfully. ID:", data?.id);
+      } catch (err: any) {
+        console.error("❌ Escalated Email Failed:", err.message);
+      }
+    }
+
+    // Send Discord
+    const discordWebhook = website.user.discord_webhook || process.env.DISCORD_WEBHOOK || process.env.TEST_DISCORD_WEBHOOK;
+    if (discordWebhook) {
+      console.log(`🤖 Attempting to send Escalated Discord alert to Webhook: ${discordWebhook.substring(0, 30)}...`);
+      try {
+        const { sendEscalatedDiscordAlert } = await import('./discordService');
+        await sendEscalatedDiscordAlert(
+          discordWebhook,
+          website.url,
+          durationMinutes
+        );
+        console.log("✅ Escalated Discord alert sent successfully");
+      } catch (err: any) {
+        console.error("❌ Escalated Discord Failed:", err.message);
+      }
+    }
+  }
 }
 
 // ─── User-Requested Service Object ────────────────────────────────────────
@@ -545,7 +686,7 @@ export const notificationService = {
   async sendEmail(to: string, subject: string, html: string) {
     try {
       const response = await resend.emails.send({
-        from: "noreply@upgaurd.com",
+        from: "UpGuard <onboarding@resend.dev>",
         to,
         subject,
         html,

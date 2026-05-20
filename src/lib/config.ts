@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
 
 export const JWTSECRET = process.env.JWT || 'fallback_jwt_secret';
 export const JWT_SECRET = process.env.JWT || 'fallback_jwt_secret';
